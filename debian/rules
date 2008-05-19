@@ -1,0 +1,76 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+include /usr/share/quilt/quilt.make
+
+CFLAGS = -DUSELIBGCRYPT -Wall -g
+
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+    CFLAGS += -O0
+else
+    CFLAGS += -O2
+endif
+
+build: build-stamp
+build-stamp: $(QUILT_STAMPFN)
+	dh_testdir
+	$(MAKE) CFLAGS="$(CFLAGS)"
+	touch build-stamp
+
+clean: doclean unpatch
+doclean:
+	dh_testdir
+	dh_testroot
+	rm -f build-stamp
+	[ ! -f Makefile ] || $(MAKE) clean
+	-rm -f cpnt
+	dh_clean
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+	install -m 755 chntpw $(CURDIR)/debian/chntpw/usr/sbin/
+
+binary-indep: build install
+
+binary-arch: build install
+	dh_testdir
+	dh_testroot
+	dh_installdocs
+	dh_installman debian/chntpw.8
+	dh_installchangelogs HISTORY.txt
+	dh_link
+	dh_strip
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+get-orig-source:
+	wget -O chntpw-source-070923.zip http://home.eunet.no/~pnordahl/ntpasswd/chntpw-source-070923.zip
+	rm -rf chntpw-070923 chntpw-0.99.5.orig
+	unzip chntpw-source-070923.zip
+	mv chntpw-070923 chntpw-0.99.5.orig
+	# Statically linked with OpenSSL, therefore not distributable
+	# Upstream has been notified, no response yet
+	rm -f chntpw-0.99.5.orig/chntpw.static
+	# No permission to distribute these unfortunately
+	#for file in faq.html bootdisk.html syskey.txt ; do \
+	#	wget -O chntpw-0.99.5.orig/$$file http://home.eunet.no/~pnordahl/ntpasswd/$$file; \
+	#done
+	#mkdir chntpw-0.99.5.orig/images
+	#for file in faq.gif ; do \
+	#	wget -O chntpw-0.99.5.orig/images/$$file http://home.eunet.no/~pnordahl/ntpasswd/images/$$file; \
+	#done
+	tar zcf chntpw_0.99.5.orig.tar.gz chntpw-0.99.5.orig
+	rm -rf chntpw-0.99.5.orig chntpw-source-070923.zip
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install configure
