@@ -3,8 +3,8 @@ Section: admin
 Priority: optional
 Maintainer: Javier Fernandez-Sanguino Pen~a <jfs@computer.org>
 Build-Depends: debhelper (>> 5.0.0), libgcrypt11-dev | libgcrypt-dev, sharutils, quilt
-Standards-Version: 3.7.3
-Homepage: http://home.eunet.no/~pnordahl/ntpasswd/
+Standards-Version: 3.8.4
+Homepage: http://pogostick.net/~pnh/ntpasswd/
 
 Package: chntpw
 Architecture: any

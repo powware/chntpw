@@ -1,3 +1,14 @@
+chntpw (0.99.6-0+nmu1) unstable; urgency=low
+
+  * Non-maintainer upload
+  * New upstream release (Closes: #503908 , #539227) (LP: #293809)
+  * Regenerated debian/patches/ (Closes: #538574)
+  * Updated standards and fixed errors in debian/*
+  * Merged Tanguy Ortolo's manpage patch(Closes: #569943)
+  * Add debian/watch
+
+ -- Philippe Coval <rzr@gna.org>  Thu, 04 Mar 2010 12:24:09 +0100
+
 chntpw (0.99.5-0+nmu1) unstable; urgency=low
 
   * Non-maintainer upload with the maintainers permission.
@@ -91,4 +102,3 @@ chntpw (0.98.2-010107-1) unstable; urgency=low
   * Initial Release.
 
  -- Javier Fernandez-Sanguino Pen~a <jfs@computer.org>  Thu, 30 May 2002 00:27:47 +0200
-
