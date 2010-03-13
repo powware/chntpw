@@ -1,13 +1,36 @@
 
 The Offline NT Password Editor
 
-(c) 1997-2007 Petter Nordahl-Hagen
+(c) 1997-2008 Petter Nordahl-Hagen
 
 See README for general info, copyright & credits.
 See INSTALL for compile/installation instructions.
 
 Revision history 
-(chntpw utility only, see website for info on bootdisk revisions)
+(tools only, see website for info on bootdisk revisions)
+
+* v 0.99.6 080526
+ reged:
+ - NEW TOOL: It's actually just the interactive registry edit
+   (still also available in chntpw) plus
+   the registry export to .reg-file from command line.
+   This tool contains no password functions, thus no crypto.
+ chntpw:
+ - Interactive reg ed moved out of chntpw, into edlib.c
+ - 64 bit compatible patch by Mike Doty, via Alon Bar-Lev
+          http://bugs.gentoo.org/show_bug.cgi?id=185411
+ - Some minor tweaks and fixes
+ ntreg library:
+ - Type QWORD (XP/Vista and newer) now recognized
+ - Most functions accepting a path now also have a parameter specifying if
+   the search should be exact or on first match basis, thus
+   this libary version breaks build with older programs.
+ - Fixed bug which skipped first indirect index table when deleting keys,
+   usually leading to endless loop when recursive deleting.
+ - Export to .reg file by Leo von Klenze, expanded a bit by me.
+ - 64 bit compatible patch by Mike Doty, via Alon Bar-Lev
+   http://bugs.gentoo.org/show_bug.cgi?id=185411
+ - A few other small fixes and tweaks.
 
 * v 0.99.5 070923
  - User edit is now menu-driven, better visuals / tables / listings.

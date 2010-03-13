@@ -1,6 +1,14 @@
 /*
  * ntreg.c - NT Registry Hive access library
  *
+ * 2008-mar: Type QWORD (XP/Vista and newer) now recognized
+ * 2008-mar: Most functions accepting a path now also have a parameter specifying if
+ *           the search should be exact or on first match basis
+ * 2008-mar: Fixed bug which skipped first indirect index table when deleting keys,
+ *           usually leading to endless loop when recursive deleting.
+ * 2008-mar: Export to .reg file by Leo von Klenze, expanded a bit by me.
+ * 2008-mar: 64 bit compatible patch by Mike Doty, via Alon Bar-Lev
+ *           http://bugs.gentoo.org/show_bug.cgi?id=185411
  * 2007-sep: Verbosity/debug messages minor changes
  * 2007-apr: LGPL license.
  * 2004-aug: Deep indirect index support. NT351 support. Recursive delete.
@@ -40,19 +48,23 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "ntreg.h"
 
 /* Set to abort() and debug on more critical errors */
-#define DOCORE 0
+#define DOCORE 1
 
+#define ZEROFILL      1  /* Fill blocks with zeroes when allocating and deallocating */
+#define ZEROFILLONLOAD  0  /* Fill blocks marked as unused/deallocated with zeroes on load. FOR DEBUG */
 
-const char ntreg_version[] = "ntreg lib routines, v0.94 070923, (c) Petter N Hagen";
+const char ntreg_version[] = "ntreg lib routines, v0.94 080526, (c) Petter N Hagen";
 
 const char *val_types[REG_MAX+1] = {
   "REG_NONE", "REG_SZ", "REG_EXPAND_SZ", "REG_BINARY", "REG_DWORD",       /* 0 - 4 */
   "REG_DWORD_BIG_ENDIAN", "REG_LINK",                                     /* 5 - 6 */
   "REG_MULTI_SZ", "REG_RESOUCE_LIST", "REG_FULL_RES_DESC", "REG_RES_REQ", /* 7 - 10 */
+  "REG_QWORD",                                                            /* 11     */
 };
 
 /* Utility routines */
@@ -382,17 +394,17 @@ void parse_nk(struct hive *hdesc, int vofs, int blen)
 #define D_OFFS(o) ( (void *)&(key->o)-(void *)hdesc->buffer-vofs )
 
   key = (struct nk_key *)(hdesc->buffer + vofs);
-  printf("%04x   type              = 0x%02x %s\n", D_OFFS(type)  , key->type,
+  printf("%04x   type              = 0x%02x %s\n", D_OFFS(type)  ,key->type,
 	                           (key->type == KEY_ROOT ? "ROOT_KEY" : "") );
   printf("%04x   timestamp skipped\n", D_OFFS(timestamp) );
-  printf("%04x   parent key offset = 0x%0lx\n", D_OFFS(ofs_parent) ,key->ofs_parent);
-  printf("%04x   number of subkeys = %ld\n", D_OFFS(no_subkeys),key->no_subkeys);
-  printf("%04x   lf-record offset  = 0x%0lx\n",D_OFFS(ofs_lf),key->ofs_lf);
-  printf("%04x   number of values  = %ld\n", D_OFFS(no_values),key->no_values);
-  printf("%04x   val-list offset   = 0x%0lx\n",D_OFFS(ofs_vallist),key->ofs_vallist);
-  printf("%04x   sk-record offset  = 0x%0lx\n",D_OFFS(ofs_sk),key->ofs_sk);
-  printf("%04x   classname offset  = 0x%0lx\n",D_OFFS(ofs_classnam),key->ofs_classnam);
-  printf("%04x   *unused?*         = 0x%0lx\n",D_OFFS(dummy4),key->dummy4);
+  printf("%04x   parent key offset = 0x%0x\n", D_OFFS(ofs_parent) ,key->ofs_parent);
+  printf("%04x   number of subkeys = %d\n", D_OFFS(no_subkeys),key->no_subkeys);
+  printf("%04x   lf-record offset  = 0x%0x\n",D_OFFS(ofs_lf),key->ofs_lf);
+  printf("%04x   number of values  = %d\n", D_OFFS(no_values),key->no_values);
+  printf("%04x   val-list offset   = 0x%0x\n",D_OFFS(ofs_vallist),key->ofs_vallist);
+  printf("%04x   sk-record offset  = 0x%0x\n",D_OFFS(ofs_sk),key->ofs_sk);
+  printf("%04x   classname offset  = 0x%0x\n",D_OFFS(ofs_classnam),key->ofs_classnam);
+  printf("%04x   *unused?*         = 0x%0x\n",D_OFFS(dummy4),key->dummy4);
   printf("%04x   name length       = %d\n", D_OFFS(len_name),key->len_name);
   printf("%04x   classname length  = %d\n", D_OFFS(len_classnam),key->len_classnam);
 
@@ -416,10 +428,10 @@ void parse_vk(struct hive *hdesc, int vofs, int blen)
   key = (struct vk_key *)(hdesc->buffer + vofs);
   printf("%04x   name length       = %d (0x%0x)\n", D_OFFS(len_name),
 	                             key->len_name, key->len_name  );
-  printf("%04x   length of data    = %ld (0x%0lx)\n", D_OFFS(len_data),
+  printf("%04x   length of data    = %d (0x%0x)\n", D_OFFS(len_data),
 	                             key->len_data, key->len_data  );
-  printf("%04x   data offset       = 0x%0lx\n",D_OFFS(ofs_data),key->ofs_data);
-  printf("%04x   value type        = 0x%0lx  %s\n", D_OFFS(val_type), key->val_type,
+  printf("%04x   data offset       = 0x%0x\n",D_OFFS(ofs_data),key->ofs_data);
+  printf("%04x   value type        = 0x%0x  %s\n", D_OFFS(val_type), key->val_type,
                  (key->val_type <= REG_MAX ? val_types[key->val_type] : "(unknown)") ) ;
 
   printf("%04x   flag              = 0x%0x\n",D_OFFS(flag),key->flag);
@@ -444,11 +456,11 @@ void parse_sk(struct hive *hdesc, int vofs, int blen)
 
   key = (struct sk_key *)(hdesc->buffer + vofs);
   printf("%04x   *unused?*         = %d\n"   , D_OFFS(dummy1),     key->dummy1    );
-  printf("%04x   Offset to prev sk = 0x%0lx\n", D_OFFS(ofs_prevsk), key->ofs_prevsk);
-  printf("%04x   Offset to next sk = 0x%0lx\n", D_OFFS(ofs_nextsk), key->ofs_nextsk);
-  printf("%04x   Usage counter     = %ld (0x%0lx)\n", D_OFFS(no_usage),
+  printf("%04x   Offset to prev sk = 0x%0x\n", D_OFFS(ofs_prevsk), key->ofs_prevsk);
+  printf("%04x   Offset to next sk = 0x%0x\n", D_OFFS(ofs_nextsk), key->ofs_nextsk);
+  printf("%04x   Usage counter     = %d (0x%0x)\n", D_OFFS(no_usage),
 	                                            key->no_usage,key->no_usage);
-  printf("%04x   Security data len = %ld (0x%0lx)\n", D_OFFS(len_sk),
+  printf("%04x   Security data len = %d (0x%0x)\n", D_OFFS(len_sk),
 	                                            key->len_sk,key->len_sk);
 
   printf("== End of key info.\n");
@@ -470,7 +482,7 @@ void parse_lf(struct hive *hdesc, int vofs, int blen)
   printf("%04x   number of keys    = %d\n", D_OFFS(no_keys), key->no_keys  );
 
   for(i = 0; i < key->no_keys; i++) {
-    printf("%04x      %3d   Offset: 0x%0lx  - <%c%c%c%c>\n", 
+    printf("%04x      %3d   Offset: 0x%0x  - <%c%c%c%c>\n", 
 	   D_OFFS(hash[i].ofs_nk), i,
 	   key->hash[i].ofs_nk,
            key->hash[i].name[0],
@@ -498,7 +510,7 @@ void parse_lh(struct hive *hdesc, int vofs, int blen)
   printf("%04x   number of keys    = %d\n", D_OFFS(no_keys), key->no_keys  );
 
   for(i = 0; i < key->no_keys; i++) {
-    printf("%04x      %3d   Offset: 0x%0lx  - <hash: %08lx>\n", 
+    printf("%04x      %3d   Offset: 0x%0x  - <hash: %08x>\n", 
 	   D_OFFS(lh_hash[i].ofs_nk), i,
 	   key->lh_hash[i].ofs_nk,
            key->lh_hash[i].hash );
@@ -525,7 +537,7 @@ void parse_li(struct hive *hdesc, int vofs, int blen)
   printf("%04x   number of keys    = %d\n", D_OFFS(no_keys), key->no_keys  );
 
   for(i = 0; i < key->no_keys; i++) {
-    printf("%04x      %3d   Offset: 0x%0lx\n", 
+    printf("%04x      %3d   Offset: 0x%0x\n", 
 	   D_OFFS(hash[i].ofs_nk), i,
 	   key->hash[i].ofs_nk);
   }
@@ -550,7 +562,7 @@ void parse_ri(struct hive *hdesc, int vofs, int blen)
   printf("%04x   number of subindices = %d\n", D_OFFS(no_lis), key->no_lis  );
 
   for(i = 0; i < key->no_lis; i++) {
-    printf("%04x      %3d   Offset: 0x%0lx\n", 
+    printf("%04x      %3d   Offset: 0x%0x\n", 
 	   D_OFFS(hash[i].ofs_li), i,
 	   key->hash[i].ofs_li);
   }
@@ -591,7 +603,10 @@ int parse_block(struct hive *hdesc, int vofs,int verbose)
   } else {
     hdesc->unusetot += seglen;
     hdesc->unuseblk++;
+    /* Useful to zero blocks we think are empty when debugging.. */
+#if ZEROFILLONLOAD
     bzero(hdesc->buffer+vofs+4,seglen-4);
+#endif
 
     if (verbose) {
       printf("FREE BLOCK!\n"); 
@@ -850,7 +865,9 @@ int alloc_block(struct hive *hdesc, int ofs, int size)
 
     }  
     /* Clear the block data, makes it easier to debug */
+#if ZEROFILL
     bzero( (void *)(hdesc->buffer+blk+4), size-4);
+#endif
 
     hdesc->state |= HMODE_DIRTY;
     
@@ -955,14 +972,17 @@ int free_block(struct hive *hdesc, int blk)
     size += nextsz;   /* Swallow it in current block */
     hdesc->useblk--;
     hdesc->usetot -= 4;
-    hdesc->unusetot -= 4;
+    hdesc->unusetot -= 4;   /* FIXME !??!?? */
   }
 
   /* Now free the block (possibly with ajusted size as above) */
+#if ZEROFILL
    bzero( (void *)(hdesc->buffer+blk), size);
+#endif
+
   *(int *)((hdesc->buffer)+blk) = (int)size;
   hdesc->usetot -= size;
-  hdesc->unusetot -= size;
+  hdesc->unusetot -= size;  /* FIXME !?!? */
   hdesc->unuseblk--;
 
   hdesc->state |= HMODE_DIRTY;
@@ -976,7 +996,9 @@ int free_block(struct hive *hdesc, int blk)
     hdesc->unusetot += prevsz;
     prevsz += size;
     /* And swallow current.. */
+#if ZEROFILL
       bzero( (void *)(hdesc->buffer+prev), prevsz);
+#endif
     *(int *)((hdesc->buffer)+prev) = (int)prevsz;
     hdesc->useblk--;
     return(prevsz);
@@ -1206,13 +1228,14 @@ int get_abs_path(struct hive *hdesc, int nkofs, char *path, int maxlen)
  * returns index into table or -1 if err
  */
 
-int vlist_find(struct hive *hdesc, int vlistofs, int numval, char *name)
+int vlist_find(struct hive *hdesc, int vlistofs, int numval, char *name, int type)
 {
   struct vk_key *vkkey;
-  int i,vkofs;
-  long *vlistkey;
+  int i,vkofs,len;
+  int32_t *vlistkey;
 
-  vlistkey = (long *)(hdesc->buffer + vlistofs);
+  len = strlen(name);
+  vlistkey = (int32_t *)(hdesc->buffer + vlistofs);
 
   for (i = 0; i < numval; i++) {
     vkofs = vlistkey[i] + 0x1004;
@@ -1220,8 +1243,10 @@ int vlist_find(struct hive *hdesc, int vlistofs, int numval, char *name)
     if (vkkey->len_name == 0 && *name == '@') { /* @ is alias for nameless value */
       return(i);
     }
-    if (!strncmp(name, vkkey->keyname, strlen(name))) { /* name match? */
-      return(i);
+    if ( !(type & TPF_EXACT) || vkkey->len_name == len ) {
+      if (!strncmp(name, vkkey->keyname, len)) { /* name match? */
+	return(i);
+      }
     }
   }
   return(-1);
@@ -1232,7 +1257,7 @@ int vlist_find(struct hive *hdesc, int vlistofs, int numval, char *name)
  * returning offset of last 'nk' or 'vk'
  * vofs - offset to start node
  * path - null-terminated pathname (relative to vofs, \ is separator)
- * type - type to return 0=nk 1=vk
+ * type - type to return TPF_??, see ntreg.h
  * return: offset to nk or vk (or NULL if not found)
  */
 
@@ -1243,7 +1268,7 @@ int trav_path(struct hive *hdesc, int vofs, char *path, int type)
   struct li_key *likey;
   struct ri_key *rikey;
 
-  long *vlistkey;
+  int32_t *vlistkey;
   int newnkofs, plen, i, lfofs, vlistofs, adjust, r, ricnt, subs;
   char *buf;
   char part[ABSPATHLEN+1];
@@ -1251,6 +1276,8 @@ int trav_path(struct hive *hdesc, int vofs, char *path, int type)
 
   if (!hdesc) return(0);
   buf = hdesc->buffer;
+
+  if (!vofs) vofs = hdesc->rootofs+4;     /* No current key given , so start at root */
 
   if (*path == '\\' && *(path+1) != '\\') {      /* Start from root if path starts with \ */
     path++;
@@ -1279,21 +1306,21 @@ int trav_path(struct hive *hdesc, int vofs, char *path, int type)
   adjust = (path[plen] == '\\' ) ? 1 : 0;
   /*  printf("Checking for <%s> with len %d\n",path,plen); */
   if (!plen) return(vofs-4);     /* Path has no lenght - we're there! */
-  if ( (plen == 1) && (*path == '.')) {     /* Handle '.' current dir */
+  if ( (plen == 1) && (*path == '.') && !(type & TPF_EXACT)) {     /* Handle '.' current dir */
     return(trav_path(hdesc,vofs,path+plen+adjust,type));
   }
-  if ( (plen == 2) && !strncmp("..",path,2) ) { /* Get parent key */
+  if ( !(type & TPF_EXACT) && (plen == 2) && !strncmp("..",path,2) ) { /* Get parent key */
     newnkofs = key->ofs_parent + 0x1004;
     /* Return parent (or only root if at the root) */
     return(trav_path(hdesc, (key->type == KEY_ROOT ? vofs : newnkofs), path+plen+adjust, type));
   }
 
   /* at last name of path, and we want vk, and the nk has values */
-  if (!path[plen] && type == 1 && key->no_values) {   
+  if (!path[plen] && (type & TPF_VK) && key->no_values) {   
     /*    printf("VK namematch for <%s>\n",part); */
     vlistofs = key->ofs_vallist + 0x1004;
-    vlistkey = (long *)(buf + vlistofs);
-    i = vlist_find(hdesc, vlistofs, key->no_values, part);
+    vlistkey = (int32_t *)(buf + vlistofs);
+    i = vlist_find(hdesc, vlistofs, key->no_values, part, type);
     if (i != -1) {
       return(vlistkey[i] + 0x1000);
     }
@@ -1391,7 +1418,7 @@ void nk_ls(struct hive *hdesc, char *path, int vofs, int type)
     
   }
   
-  printf("Node has %ld subkeys and %ld values",key->no_subkeys,key->no_values);
+  printf("Node has %d subkeys and %d values",key->no_subkeys,key->no_values);
   if (key->len_classnam) printf(", and class-data of %d bytes",key->len_classnam);
   printf("\n");
 
@@ -1421,12 +1448,12 @@ void nk_ls(struct hive *hdesc, char *path, int vofs, int type)
 }
 
 /* Get the type of a value */
-int get_val_type(struct hive *hdesc, int vofs, char *path)
+int get_val_type(struct hive *hdesc, int vofs, char *path, int exact)
 {
   struct vk_key *vkkey;
   int vkofs;
 
-  vkofs = trav_path(hdesc, vofs,path,1);
+  vkofs = trav_path(hdesc, vofs,path,exact | TPF_VK);
   if (!vkofs) {
     return -1;
   }
@@ -1440,13 +1467,13 @@ int get_val_type(struct hive *hdesc, int vofs, char *path)
 
 
 /* Get len of a value, given current key + path */
-int get_val_len(struct hive *hdesc, int vofs, char *path)
+int get_val_len(struct hive *hdesc, int vofs, char *path, int exact)
 {
   struct vk_key *vkkey;
   int vkofs;
   int len;
 
-  vkofs = trav_path(hdesc, vofs,path,1);
+  vkofs = trav_path(hdesc, vofs,path,exact | TPF_VK);
   if (!vkofs) {
     return -1;
   }
@@ -1466,12 +1493,12 @@ int get_val_len(struct hive *hdesc, int vofs, char *path)
  * If val_type != 0 a check for correct value type is done
  * Caller must keep track of value's length (call function above to get it)
  */
-void *get_val_data(struct hive *hdesc, int vofs, char *path, int val_type)
+void *get_val_data(struct hive *hdesc, int vofs, char *path, int val_type, int exact)
 {
   struct vk_key *vkkey;
   int vkofs;
 
-  vkofs = trav_path(hdesc,vofs,path,1);
+  vkofs = trav_path(hdesc,vofs,path,exact | TPF_VK);
   if (!vkofs) {
     return NULL;
   }
@@ -1486,6 +1513,9 @@ void *get_val_data(struct hive *hdesc, int vofs, char *path, int val_type)
 
   if (val_type && vkkey->val_type && (vkkey->val_type) != val_type) {
     printf("Value <%s> is not of correct type!\n",path);
+#if DOCORE
+    abort();
+#endif
     return NULL;
   }
 
@@ -1505,17 +1535,17 @@ void *get_val_data(struct hive *hdesc, int vofs, char *path, int val_type)
  * NOTE: caller must deallocate buffer! a simple free(keyval) will suffice.
  */
 struct keyval *get_val2buf(struct hive *hdesc, struct keyval *kv,
-			    int vofs, char *path, int type )
+			   int vofs, char *path, int type, int exact )
 {
   int l;
   struct keyval *kr;
   void *keydataptr;
 
-  l = get_val_len(hdesc, vofs, path);
+  l = get_val_len(hdesc, vofs, path, exact);
   if (l == -1) return(NULL);  /* error */
   if (kv && (kv->len < l)) return(NULL); /* Check for overflow of supplied buffer */
 
-  keydataptr = get_val_data(hdesc, vofs, path, type);
+  keydataptr = get_val_data(hdesc, vofs, path, type, exact);
   /*  if (!keydataptr) return(NULL); error */
 
   /* Allocate space for data + header, or use supplied buffer */
@@ -1533,12 +1563,12 @@ struct keyval *get_val2buf(struct hive *hdesc, struct keyval *kv,
 
 /* DWORDs are so common that I make a small function to get it easily */
 
-int get_dword(struct hive *hdesc, int vofs, char *path)
+int get_dword(struct hive *hdesc, int vofs, char *path, int exact)
 {
   struct keyval *v;
   int dword;
 
-  v = get_val2buf(hdesc, NULL, vofs, path, REG_DWORD);
+  v = get_val2buf(hdesc, NULL, vofs, path, REG_DWORD, exact | TPF_VK);
   if (!v) return(-1); /* well... -1 COULD BE THE STORED VALUE TOO */
 
   dword = (int)v->data;
@@ -1584,7 +1614,7 @@ int fill_block(struct hive *hdesc, int ofs, void *data, int size)
  * we return offset of vk
  */
 
-int free_val_data(struct hive *hdesc, int vofs, char *path)
+int free_val_data(struct hive *hdesc, int vofs, char *path, int exact)
 {
   struct vk_key *vkkey;
   int vkofs, inl;
@@ -1616,7 +1646,7 @@ int free_val_data(struct hive *hdesc, int vofs, char *path)
  * Returns: 0 - error, >0 pointer to actual dataspace
  */
 
-int alloc_val_data(struct hive *hdesc, int vofs, char *path, int size)
+int alloc_val_data(struct hive *hdesc, int vofs, char *path, int size,int exact)
 {
   struct vk_key *vkkey;
   int vkofs, len;
@@ -1637,7 +1667,7 @@ int alloc_val_data(struct hive *hdesc, int vofs, char *path, int size)
   len = vkkey->len_data & 0x7fffffff;
 
   /* Then we dealloc if something was there before */
-  if (len) free_val_data(hdesc,vofs,path);
+  if (len) free_val_data(hdesc,vofs,path,exact);
 
   /* Link in new datablock */
   vkkey->ofs_data = datablk - 0x1000;
@@ -1760,7 +1790,7 @@ void del_vk(struct hive *hdesc, int vkofs)
 void del_allvalues(struct hive *hdesc, int nkofs)
 {
   int vlistofs, o, vkofs;
-  long *vlistkey;
+  int32_t *vlistkey;
   struct nk_key *nk;
 
   nk = (struct nk_key *)(hdesc->buffer + nkofs);
@@ -1775,7 +1805,7 @@ void del_allvalues(struct hive *hdesc, int nkofs)
   }
 
   vlistofs = nk->ofs_vallist + 0x1004;
-  vlistkey = (long *)(hdesc->buffer + vlistofs);
+  vlistkey = (int32_t *)(hdesc->buffer + vlistofs);
 
   /* Loop through index and delete all vk's */
   for (o = 0; o < nk->no_values; o++) {
@@ -1794,13 +1824,14 @@ void del_allvalues(struct hive *hdesc, int nkofs)
  * hdesc - yer usual hive
  * nkofs - current keyoffset
  * name  - name of value to delete
+ * exact - NKF_EXACT to do exact match, else first match
  * returns: 0 - ok, 1 - failed
  */
 
-int del_value(struct hive *hdesc, int nkofs, char *name)
+int del_value(struct hive *hdesc, int nkofs, char *name, int exact)
 {
   int vlistofs, slot, o, n, vkofs, newlistofs;
-  long *vlistkey, *tmplist, *newlistkey;
+  int32_t *vlistkey, *tmplist, *newlistkey;
   struct nk_key *nk;
   char *blank="";
 
@@ -1820,9 +1851,9 @@ int del_value(struct hive *hdesc, int nkofs, char *name)
   }
 
   vlistofs = nk->ofs_vallist + 0x1004;
-  vlistkey = (long *)(hdesc->buffer + vlistofs);
+  vlistkey = (int32_t *)(hdesc->buffer + vlistofs);
 
-  slot = vlist_find(hdesc, vlistofs, nk->no_values, name);
+  slot = vlist_find(hdesc, vlistofs, nk->no_values, name, TPF_VK);
 
   if (slot == -1) {
     printf("del_value: value %s not found!\n",name);
@@ -1834,21 +1865,21 @@ int del_value(struct hive *hdesc, int nkofs, char *name)
   del_vk(hdesc, vkofs);
 
   /* Copy out old index list */
-  CREATE(tmplist,long,nk->no_values);
-  memcpy(tmplist, vlistkey, nk->no_values * sizeof(long));
+  CREATE(tmplist,int32_t,nk->no_values);
+  memcpy(tmplist, vlistkey, nk->no_values * sizeof(int32_t));
 
   free_block(hdesc,vlistofs-4);  /* Get rid of old list */
 
   nk->no_values--;
 
   if (nk->no_values) {
-    newlistofs = alloc_block(hdesc, vlistofs, nk->no_values * sizeof(long));
+    newlistofs = alloc_block(hdesc, vlistofs, nk->no_values * sizeof(int32_t));
     if (!newlistofs) {
       printf("del_value: FATAL: Was not able to alloc new index list\n");
       abort();
     }
     /* Now copy over, omitting deleted entry */
-    newlistkey = (long *)(hdesc->buffer + newlistofs + 4);
+    newlistkey = (int32_t *)(hdesc->buffer + newlistofs + 4);
     for (n = 0, o = 0; o < nk->no_values+1; o++, n++) {
       if (o == slot) o++;
       newlistkey[n] = tmplist[o];
@@ -1882,7 +1913,7 @@ struct nk_key *add_key(struct hive *hdesc, int nkofs, char *name)
   struct lf_key *newlf = NULL, *oldlf;
   struct li_key *newli = NULL, *oldli;
   struct nk_key *key, *newnk, *onk;
-  long hash;
+  int32_t hash;
 
   key = (struct nk_key *)(hdesc->buffer + nkofs);
 
@@ -2182,7 +2213,8 @@ int del_key(struct hive *hdesc, int nkofs, char *name)
     return(1);
   }
 
-  rimax = 0; ri = NULL; riofs = 0; rislot = 0;
+  rimax = 0; ri = NULL; riofs = 0;
+  rislot = 0;
 
   if (oldlf->id == 0x6972) {  /* Indirect index 'ri', init loop */
     riofs = key->ofs_lf;
@@ -2193,8 +2225,7 @@ int del_key(struct hive *hdesc, int nkofs, char *name)
     printf("del_key: entering 'ri' traverse, rimax = %d\n",rimax);
 #endif
     
-    oldliofs = ri->hash[rislot+1].ofs_li;
-    oldlfofs = ri->hash[rislot+1].ofs_li;
+    rislot = -1; /* Starts at slot 0 below */
     
   }
   
@@ -2204,8 +2235,6 @@ int del_key(struct hive *hdesc, int nkofs, char *name)
       rislot++;
       oldliofs = ri->hash[rislot].ofs_li;
       oldlfofs = ri->hash[rislot].ofs_li;
-      oldli = (struct li_key *)(hdesc->buffer + oldliofs + 0x1004);
-      oldlf = (struct lf_key *)(hdesc->buffer + oldlfofs + 0x1004);
     }
     
     oldli = (struct li_key *)(hdesc->buffer + oldliofs + 0x1004);
@@ -2313,8 +2342,10 @@ int del_key(struct hive *hdesc, int nkofs, char *name)
 
   if (newlfofs < 0xfff) {
     printf("del_key: ERROR: newlfofs = %x\n",newlfofs);
+#if DOCORE
     debugit(hdesc->buffer,hdesc->size);
     abort();
+#endif
   }
 
   /* Check for CLASS data, if so, deallocate it too */
@@ -2335,7 +2366,7 @@ int del_key(struct hive *hdesc, int nkofs, char *name)
       *fullpath = 0;
       get_abs_path(hdesc, nkofs, fullpath, 480);
 
-      printf("del_key: need to delete ri-entry! %x - %s\n",nkofs,fullpath);
+      VERBF(hdesc,"del_key: need to delete ri-slot %d for %x - %s\n", rislot,nkofs,fullpath );
 
       if (ri->no_lis > 1) {  /* We have subindiceblocks left? */
 	/* Delete from array */
@@ -2347,7 +2378,6 @@ int del_key(struct hive *hdesc, int nkofs, char *name)
 	  newri->hash[n].ofs_li = ri->hash[o].ofs_li;
 	}
 	newriofs = alloc_block(hdesc, nkofs, 8 + newri->no_lis*4 );
-	printf("del_key: alloc_block for ri-block returns: %x\n",newriofs);
 	if (!newriofs) {
 	  printf("del_key: WARNING: unable to allocate space for ri-index for %s! Not deleted\n",name);
 	  FREE(newlf);
@@ -2359,7 +2389,7 @@ int del_key(struct hive *hdesc, int nkofs, char *name)
 	key->ofs_lf = newriofs - 0x1000;
 	FREE(newri);
       } else { /* Last entry in ri was deleted, get rid of it, key is empty */
-	printf("del_key: last ri deleted for %x\n",nkofs);
+	VERB(hdesc,"del_key: .. and that was the last one. key now empty!\n");
 	free_block(hdesc, riofs + 0x1000);
 	key->ofs_lf = -1;
       }
@@ -2391,7 +2421,7 @@ void rdel_keys(struct hive *hdesc, char *path, int vofs)
 
   if (!path || !*path) return;
 
-  nkofs = trav_path(hdesc, vofs, path, 0);
+  nkofs = trav_path(hdesc, vofs, path, TPF_NK_EXACT);
 
   if(!nkofs) {
     printf("rdel_keys: Key <%s> not found\n",path);
@@ -2401,7 +2431,9 @@ void rdel_keys(struct hive *hdesc, char *path, int vofs)
 
   key = (struct nk_key *)(hdesc->buffer + nkofs);
 
+  /*
   VERBF(hdesc,"rdel of node at offset 0x%0x\n",nkofs);
+  */
 
   if (key->id != 0x6b6e) {
     printf("Error: Not a 'nk' node!\n");
@@ -2411,7 +2443,7 @@ void rdel_keys(struct hive *hdesc, char *path, int vofs)
   }
   
 #if 0
-  printf("Node has %ld subkeys and %ld values\n",key->no_subkeys,key->no_values);
+  printf("Node has %d subkeys and %d values\n",key->no_subkeys,key->no_values);
 #endif
   if (key->no_subkeys) {
     while ((ex_next_n(hdesc, nkofs, &count, &countri, &ex) > 0)) {
@@ -2432,7 +2464,7 @@ void rdel_keys(struct hive *hdesc, char *path, int vofs)
   
 
 /* Get and copy keys CLASS-data (if any) to buffer
- * Returns a buffer with the data (first long is size). see ntreg.h
+ * Returns a buffer with the data (first int32_t is size). see ntreg.h
  * NOTE: caller must deallocate buffer! a simple free(keyval) will suffice.
  */
 struct keyval *get_class(struct hive *hdesc,
@@ -2484,22 +2516,22 @@ struct keyval *get_class(struct hive *hdesc,
  */
 
 int put_buf2val(struct hive *hdesc, struct keyval *kv,
-			    int vofs, char *path, int type )
+		int vofs, char *path, int type, int exact )
 {
   int l;
   void *keydataptr;
 
   if (!kv) return(0);
-  l = get_val_len(hdesc, vofs, path);
+  l = get_val_len(hdesc, vofs, path, exact);
   if (l == -1) return(0);  /* error */
   if (kv->len != l) {  /* Realloc data block if not same size as existing */
-    if (!alloc_val_data(hdesc, vofs, path, kv->len)) {
+    if (!alloc_val_data(hdesc, vofs, path, kv->len, exact)) {
       printf("put_buf2val: %s : alloc_val_data failed!\n",path);
       return(0);
     }
   }
 
-  keydataptr = get_val_data(hdesc, vofs, path, type);
+  keydataptr = get_val_data(hdesc, vofs, path, type, exact);
   if (!keydataptr) return(0); /* error */
 
   memcpy(keydataptr, &kv->data, kv->len);
@@ -2511,7 +2543,7 @@ int put_buf2val(struct hive *hdesc, struct keyval *kv,
 
 /* And, yer basic DWORD write */
 
-int put_dword(struct hive *hdesc, int vofs, char *path, int dword)
+int put_dword(struct hive *hdesc, int vofs, char *path, int exact, int dword)
 {
   struct keyval *kr;
   int r;
@@ -2521,11 +2553,186 @@ int put_dword(struct hive *hdesc, int vofs, char *path, int dword)
   kr->len = sizeof(int);
   kr->data = dword;
 
-  r = put_buf2val(hdesc, kr, vofs, path, REG_DWORD);
+  r = put_buf2val(hdesc, kr, vofs, path, REG_DWORD, exact);
 
   FREE(kr);
 
   return(r);
+}
+
+/* ================================================================ */
+
+/* Code to export registry entries to .reg file initiated by
+ * Leo von Klenze
+ * Then expanded a bit to handle more types etc.
+ */
+
+/*
+ * converts a value string from an registry entry into a c string. It does not
+ * use any encoding functions.
+ * It works very primitive by just taking every second char.
+ * The caller must free the resulting string, that was allocated with malloc.
+ *
+ * string:  string where every second char is \0
+ * len:     length of the string
+ * return:  the converted string as char*
+ */
+char * convert_string(void *string, int len)
+{
+    int i, k;
+    int reallen = len / 2;
+    char *cstring = (char *)malloc(reallen);
+
+    for(i = 0, k = 0; i < len; i += 2, k++)
+    {
+        cstring[k] = ((char *)string)[i];
+    }
+    cstring[reallen - 1] = '\0';
+
+    return cstring;
+}
+
+/*
+ * Exports the named subkey and its values to the given file.
+ *
+ * hdesc:   registry hive
+ * nkofs:   offset of parent node
+ * name:    name of key to export
+ * prefix:  prefix for each key. This prefix is prepended to the keyname
+ * file:    file descriptor of destination file
+ */
+void export_subkey(struct hive *hdesc, int nkofs, char *name, char *prefix, FILE *file)
+{
+    int newofs;
+    int count = 0;
+    int countri = 0;
+    int len, byte;
+    char keyname[128];
+    char path[1024];
+    char *value;
+    struct nk_key *key;
+    struct ex_data ex;
+    struct vex_data vex;
+
+
+    // switch to key
+    newofs = trav_path(hdesc, nkofs, name, TPF_NK_EXACT);
+    if(!newofs)
+    {
+        printf("Key '%s' not found!\n", name);
+        return;
+    }
+    nkofs = newofs + 4;
+
+    // get the key
+    key = (struct nk_key *)(hdesc->buffer + nkofs);
+    strncpy(keyname, key->keyname, key->len_name);
+    keyname[key->len_name] = '\0';
+    printf("Exporting key '%s' with %d subkeys and %d values...\n",
+            keyname, key->no_subkeys, key->no_values);
+
+    *path = 0;
+    get_abs_path(hdesc, nkofs, path, 1024);
+
+    // export the key
+    fprintf(file, "\r\n");
+    fprintf(file, "[%s\%s]\r\n", prefix, path);
+    // export values
+    if(key->no_values)
+    {
+        while ((ex_next_v(hdesc, nkofs, &count, &vex) > 0))
+        {
+            if(vex.type == REG_DWORD)
+            {
+                fprintf(file, "\"%s\"=dword:%08x\r\n", vex.name, vex.val);
+            }
+            else if(vex.type == REG_SZ)
+            {
+	        value = (char *)get_val_data(hdesc, nkofs, vex.name, vex.type, TPF_VK_EXACT);
+	        len = get_val_len(hdesc, nkofs, vex.name, TPF_VK_EXACT);
+
+                fprintf(file, "\"%s\"=\"%s\"", vex.name, convert_string(value, len));
+                fprintf(file, "\r\n");
+            }
+	    else
+            {
+	      /* All other types seems to simply be hexdumped. Format is:
+		 "valuename"=hex(typenum):xx,xx,xx,xx,xx...
+		 for example:
+		 "qword64"=hex(b):4e,03,51,db,fa,04,00,00
+		 this is type = 0xb = 11 = REG_QWORD
+		 "expandstring"=hex(2):46,00,6f,00,6f,00,62,00,61,00,72,00,20,00,25,00,73,00,20,\
+		 00,42,00,61,00,7a,00,00,00
+		 this is type 2 = REG_EXPAND_SZ and the line is continued with ,\<CR><LF><space><space>
+		 don't know how many bytes for each line. Around 18-24 seems to be it?? depends on name lenght??
+		 NOTE: Exception:
+		 type = REG_BINARY starts like this: "valuename"=hex:xx,xx,xx...
+	      */
+	      value = (char *)get_val_data(hdesc, nkofs, vex.name, vex.type, TPF_VK_EXACT);
+	      len = get_val_len(hdesc, nkofs, vex.name, TPF_VK_EXACT);
+
+	      if (vex.type == REG_BINARY) {
+		fprintf(file, "\"%s\"=hex:", vex.name);
+	      } else {
+		fprintf(file, "\"%s\"=hex(%x):", vex.name, vex.type);
+	      }
+	      byte = 0;
+	      while (byte < len) { /* go byte by byte.. probably slow.. */
+		fprintf(file, "%02x,", (unsigned char)value[byte]);
+		byte++;
+		if (!(byte % 20)) fprintf(file, "\\\r\n  ");
+	      }
+	      fprintf(file, "%02x\r\n", (unsigned char)value[byte]);
+            }
+
+            FREE(vex.name);
+        }
+    }
+
+    // export subkeys
+    if (key->no_subkeys)
+    {
+        count = 0;
+        countri = 0;
+        while ((ex_next_n(hdesc, nkofs, &count, &countri, &ex) > 0))
+        {
+            export_subkey(hdesc, nkofs, ex.name, prefix, file);
+            FREE(ex.name);
+        }
+    }
+}
+
+/*
+ * Exports the given key to a windows .reg file that can be imported to the
+ * windows registry.
+ * The prefix is used to determine the destination hive in the windows
+ * registry, set it to HKEY_CURRENT_USER or HKEY_LOCAL_MACHINE or whatever you
+ * want.
+ *
+ * hdesc:       hive
+ * nkofs:       offset of parent node
+ * name:        name of subkey to export
+ * filename:    name of destination .reg file (will be overridden)
+ * prefix:      prefix for each exported key
+ */
+void export_key(struct hive *hdesc, int nkofs, char *name, char *filename, char *prefix)
+{
+    FILE *file;
+
+    // open file
+    file = fopen(filename, "w");
+    if(!file)
+    {
+        printf("Cannot open file '%s'. %s (%d).\n", filename, strerror(errno),
+                errno);
+        return;
+    }
+
+    printf("Exporting to file '%s'...\n", filename);
+        fprintf(file, "Windows Registry Editor Version 5.00\r\n\r\n");
+    export_subkey(hdesc, nkofs, name, prefix, file);
+
+    fclose(file);
 }
 
 
@@ -2580,7 +2787,7 @@ struct hive *openHive(char *filename, int mode)
   struct hive *hdesc;
   int fmode,r,vofs;
   struct stat sbuf;
-  unsigned long pofs;
+  uint32_t pofs;
   /* off_t l; */
   char *c;
   struct hbin_page *p;
@@ -2687,7 +2894,7 @@ struct hive *openHive(char *filename, int mode)
 #endif
      p = (struct hbin_page *)(hdesc->buffer + pofs);
      if (p->id != 0x6E696268) {
-       printf("Page at 0x%lx is not 'hbin', assuming file contains garbage at end\n",pofs);
+       printf("Page at 0x%x is not 'hbin', assuming file contains garbage at end\n",pofs);
        break;
      }
      hdesc->pages++;

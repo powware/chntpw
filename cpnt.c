@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 
 #define BUFSIZE 16384
