@@ -1,14 +1,14 @@
 Source: chntpw
 Section: admin
 Priority: optional
-Maintainer: Javier Fernandez-Sanguino Pen~a <jfs@computer.org>
-Build-Depends: debhelper (>> 5.0.0), libgcrypt11-dev | libgcrypt-dev, sharutils, quilt
+Maintainer: Javier Fernandez-Sanguino Pen~a <jfs@debian.org>
+Build-Depends: debhelper (>> 3.0.0), libgcrypt11-dev | libssl-dev, sharutils, quilt
 Standards-Version: 3.8.4
 Homepage: http://pogostick.net/~pnh/ntpasswd/
 
 Package: chntpw
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}
 Description: NT SAM password recovery utility
  This little program provides a way to view information and
  change user passwords in a Windows NT/2000 user database file.
@@ -17,6 +17,6 @@ Description: NT SAM password recovery utility
  (same size data writes) and an hex-editor which enables you to
  fiddle around with bits and bytes in the file as you wish.
  .
- If you want GNU/Linux boot disks for offline password recovery
+ If you want GNU/Linux bootdisks for offline password recovery
  you can add this utility to custom image disks or use those provided
  at the tools homepage.
