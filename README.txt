@@ -1,7 +1,7 @@
 
 The Offline NT Password Editor
 
-(c) 1997-2007 Petter Nordahl-Hagen
+(c) 1997-2008 Petter Nordahl-Hagen
 
 This is free software, licensed under the following:
 
@@ -9,6 +9,9 @@ This is free software, licensed under the following:
 License. See LGPL.txt.
 
 "chntpw" (the password reset / registry editor frontend) is licensed
+under the GNU General Public License, see GPL.txt.
+
+"reged" (registry editor /export tool) is licensed
 under the GNU General Public License, see GPL.txt.
 
 See INSTALL.txt for compile/installation instructions.
@@ -22,8 +25,8 @@ At that site there's a floppy and a bootable CD that use chntpw to
 access the NT/2k/XP/Vista-system it is booted on to edit password etc.
 The instructions below are for the standalone program itself, not the floppy.
 
-What does it do?
-----------------
+What does chntpw do?
+--------------------
 
 This little program will enable you to view some information and
 change user passwords in a Windows NT SAM userdatabase file.
