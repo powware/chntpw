@@ -1,0 +1,34 @@
+
+The Offline NT Password & Registry Editor
+
+(c) 1997-2007 Petter Nordahl-Hagen
+
+See REAMDE for general instructions and license info.
+
+General usage is via the provided boot CD images.
+
+
+If you want to build yourself, it should compile
+with most gcc compilers. However, I am not particulary good
+with types, so there may be some warnings.
+
+You may have to install the openssl-devel package from you
+linux distro to compile/link, since I need the static variant.
+(change the makefile to link dynamic if you wish)
+I link statically with libcrypto.a from OpenSSL.
+
+
+Thanks to Denis Ducamp for modifying chntpw to use OpenSSL.
+
+If make goes well, you should have a single binary
+called 'chntpw', dynamically linked with the clib,
+statically with the ssl library.
+
+Also, the floppies and CDs are build under a different
+environment for small libc size (uClibc), see website
+for details.
+
+So, note that the binary then contains cryptographic code
+which may be illegal for you to export.
+
+Good luck.
