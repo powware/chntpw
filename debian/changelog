@@ -1,3 +1,20 @@
+chntpw (0.99.6-2) unstable; urgency=low
+
+  * Add patches provided by Fedora to fix regex -x crahses, see 
+      https://bugzilla.redhat.com/show_bug.cgi?id=504580
+      http://cvs.fedoraproject.org/viewvc/devel/chntpw/
+    The patches included are:
+    chntpw-080526-correct-test-for-failing-open-syscall.patch
+    chntpw-080526-detect-failure-to-write-key.patch
+    chntpw-080526-get_abs_path.patch
+    chntpw-080526-keyname-overflow.patch
+    chntpw-080526-no-value.patch
+    chntpw-080526-port-to-gcrypt-debian.patch
+    chntpw-080526-reged-no-deref-null.patch
+    chntpw-080526-robustness.patch
+
+ -- Javier Fernandez-Sanguino Pen~a <jfs@debian.org>  Sat, 13 Mar 2010 12:14:05 +0100
+
 chntpw (0.99.6-1) unstable; urgency=low
 
   * New upstream release (Closes: #503908)

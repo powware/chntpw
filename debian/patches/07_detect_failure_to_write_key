@@ -1,0 +1,19 @@
+Detect stream write failure.
+--- a/ntreg.c
++++ b/ntreg.c
+@@ -2730,7 +2730,14 @@
+         fprintf(file, "Windows Registry Editor Version 5.00\r\n\r\n");
+     export_subkey(hdesc, nkofs, name, prefix, file);
+ 
+-    fclose(file);
++    if (ferror (file)) {
++	printf("failed to write file '%s'\n", filename);
++	fclose (file);
++	return;
++    }
++    if (fclose(file))
++      printf("failed to write file '%s': %s\n", filename,
++	     strerror(errno));
+ }
+ 
+ 
