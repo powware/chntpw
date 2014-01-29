@@ -1,9 +1,9 @@
 Detect stream write failure.
 --- a/ntreg.c
 +++ b/ntreg.c
-@@ -2730,7 +2730,14 @@
-         fprintf(file, "Windows Registry Editor Version 5.00\r\n\r\n");
-     export_subkey(hdesc, nkofs, name, prefix, file);
+@@ -3390,7 +3390,14 @@
+ 
+     fprintf(file,"\r\n"); /* Must end file with an empty line, windows does that */
  
 -    fclose(file);
 +    if (ferror (file)) {
@@ -16,4 +16,4 @@ Detect stream write failure.
 +	     strerror(errno));
  }
  
- 
+ /* ================================================================ */

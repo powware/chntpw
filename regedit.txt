@@ -1,6 +1,6 @@
 The Offline NT Password Editor
 
-(c) 1997-2003 Petter Nordahl-Hagen
+(c) 1997-2011 Petter Nordahl-Hagen
 
 Registry Editor Usermanual/docs
 
@@ -8,29 +8,85 @@ See COPYING for copyright & credits.
 See INSTALL for compile/installation instructions.
 See README for docs on the passwordpart (or website for bootdisk)
 
-January 2003:
+Some known limitations as of first half 2011:
 This release features full basic registry edit with
-add/del keys and values and resizing values.
-Limitations/not implemented yet:
-- Not possible to expand the hive file with new pages.
-  Only existing free space within the current filesize
-  can be used to add keys/values.
-- When there are many subkeys of a key, the indexing will be
-  different, and this is not supported yet when adding/removing keys.
-  Will give error "not 'lh' or 'lf' index.."
-- NT3.51 add/del subkeys not supported yet.
-- Ability to start a new fresh blank hive is on the TODO list.
-- In some cases there seems to be space at the end of the hive file
-  but that space is not covered in the usual page structure.
-  This may cause some errors during registry edit:
-  "Ran off end of page.." or "zero size page len.." (and exit).
-  If the edit continues, it's usually safe to continue,
-  but you may lose some space in the file.
-  I'm investigating this.
+add/del keys and values and resizing values, and also
+expanding the file.
+Renaming keys and values is not implemented yet.
+Import is slow. Export is fast.
+
+Program "reged" is used for interactive registry edit
+(rudimentary command prompt type interface)
+or to export or import .reg files.
+Import and export can also be scripted (non-interactive)
+
+The "chntpw" program which is for password edits, also
+contains the editor, but not the import / export.
+
+Usage of "reged":
+
+  reged version 0.1 110504, (c) Petter N Hagen
+
+  Modes:
+  -x <registryhivefile> <prefixstring> <key> <output.reg>
+     Xport. Where <prefixstring> for example is HKEY_LOCAL_MACHINE\SOFTWARE
+     <key> is key to dump (recursively), . or \ or \\ means all keys in hive
+     Only one .reg and one hive file supported at the same time
+  -I <registryhivefile> <prefixstring> <input.reg>
+     Import from .reg file. Where <prefixstring> for example is HKEY_LOCAL_MACHINE\SOFTWARE
+     Only one .reg and one hive file supported at the same time
+  -e <registryhive> ...
+     Interactive edit one or more of registry files
+
+  Options:
+  -L : Log changed filenames to /tmp/changed, also auto-saves
+  -C : Auto-save (commit) changed hives without asking
+  -N : No allocate mode, only allow edit of existing values with same size
+  -E : No expand mode, do not expand hive file (safe mode)
+  -t : Debug trace of allocated blocks
+  -v : Some more verbose messages
 
 
-This is a short demo of the registry editor-part, should give you
-an idea on how it works.
+-x will do export to .reg file.
+It will create files that seems to be compatible with regedit.exe in
+Windows.
+The prefix is the first part of the key names that windows shows/uses,
+it is not stored in the hive files, so you can actually put in
+anything unless you have to import in Windows.
+Current version only handles one set of files at a time (and also only
+one point to start export from in it)
+
+-I does import of .reg files into the specified hive file.
+It supports .reg files from Windows regedit.exe, they are usually
+UTF-16 (16 bit characters) and in the few cases I tested it will
+import with correct characters. Please note that the key and value
+names always are 8 bit in the registry, but strings the values store
+are 16 bit characters.
+Will also work with latin-1 (8 bit) character files, like the export
+functions creates, but again some character conversions may be wrong.
+Note that the current versions are pretty slow, since they are not
+optimized or well written in any way. Around 90000 keys with 120000
+values just took around 10 minutes on my pretty fast machine.
+(I am lazy! You don't write hex reads with one byte at a time do you? :)
+
+-e goes into interactive editor (see below for old example)
+-e can be combined with -I so that the editor is entered before saving
+-after an import.
+
+-N and -E are safe modes, can be used with any mode.
+-C must be used when importing to auto-save, else it will ask first if
+import succeeds.
+The -L option will write changed hive file names to /tmp/changed,
+I use it for scripts that need to know.
+
+
+------------------------
+
+
+Here is an old demo of registry edit, via the chntpw program,
+but regedit is the same (except some new stuff is in there)
+
+
 You can navigate the registry almost like a filesystem (only difference
 being that the "files" actually are of a special datatype, instead of
 just a bytestream)
@@ -312,6 +368,7 @@ Node has 0 subkeys and 0 values
 [1c2ef8] \DemoKey> nv 1 test
 
   (type 1 is string, 3 binary, 4 dword)
+  (HINT: type "nv h" for help)
 
 [1c2ef8] \DemoKey> l
 ls of node at offset 0x1c2efc

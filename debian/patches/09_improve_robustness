@@ -11,7 +11,7 @@ the third one was added to address an error found using valgrind:
 * ntreg.c (openHive): Don't read uninitialized when file is too small.
 --- a/ntreg.c
 +++ b/ntreg.c
-@@ -82,14 +82,16 @@
+@@ -190,14 +190,18 @@
  
  int fmyinput(char *prmpt, char *ibuf, int maxlen)
  {
@@ -23,27 +23,18 @@ the third one was added to address an error found using valgrind:
 +   len = strlen(ibuf);
     
 -   ibuf[strlen(ibuf)-1] = 0;
-+   if (len)
-+      ibuf[len-1] = 0;
-    
+-   
 -   return(strlen(ibuf));
++   if (len) {
++      ibuf[len-1] = 0;
++      --len;
++    }
++
 +   return len;
  }
  
  /* Print len number of hexbytes */
-@@ -2583,7 +2585,10 @@
-     int i, k;
-     int reallen = len / 2;
-     char *cstring = (char *)malloc(reallen);
--
-+    if (cstring == NULL) {
-+	printf("FATAL! convert_string: malloc() failed! Out of memory?\n");
-+	abort();
-+      }
-     for(i = 0, k = 0; i < len; i += 2, k++)
-     {
-         cstring[k] = ((char *)string)[i];
-@@ -2848,6 +2853,14 @@
+@@ -4127,6 +4131,14 @@
      closeHive(hdesc);
      return(NULL);
    }

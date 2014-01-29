@@ -1,13 +1,104 @@
 
 The Offline NT Password Editor
 
-(c) 1997-2008 Petter Nordahl-Hagen
+(c) 1997-2011 Petter Nordahl-Hagen
 
 See README for general info, copyright & credits.
 See INSTALL for compile/installation instructions.
 
 Revision history 
 (tools only, see website for info on bootdisk revisions)
+
+* v 0.99.6 110511
+
+regedit library (chntpw and reged uses it):
+- Hive expansion! Library now does hive file expansion by
+  default! (but you can turn it off, safe mode). If expansion occured, you
+  will get a warning when saving the hive.
+- There were a lot of goofs by me in the add/delete key and value
+  handling, which made windows complain and lose data. Hope I managed
+  to fix them.
+- Also, found out more about how Windows does things, for example:
+  - Empty name (default) value, flag field is 0 (not 1 as usual)
+  - Values with data size 0 to 4 the value data itself is stored in
+  the data pointer field, typical for DWORD (this I knew a long time
+  ago), sign bit of data size field is then set. BUT..
+  - In a lot of cases in SAM, for null name values, size is 0 with sign
+  set. In that case, the data dword is stored in the TYPE field,
+  and the rest is unused. This saves a few bytes of course.. but why?
+  The rest of the stuff registry is used for is often seriously bloated
+  anyway. Did the guys at MS who actually wrote the SAM stuff back
+  in the NT3 days actually do it because they cared? or just because
+  they found something new and exiting they smoked? :)
+  - Large values (seems to be from around 16k) are split internally in
+  several parts. Sounds smart. But it goes via 2 (two) separate data
+  structures that has to be allocated.
+  For regular small values the data pointer simply points to the data
+  itself. For this split large value it points to a "db" struct. This
+  contais a count of how many parts there are. And then the list of
+  pointers to the data parts? Nope. It points to another area where
+  the list of pointers are stored.
+  Pseudo: vk.ofs_data -> db.list -> list[n] -> raw data block n
+  The last raw data block always allocates the whole hbin (usually
+  16k) it is in, even if all of it is not needed. Of course only the correct
+  amount of data is copied out based on the value length.
+  On new Vista64 bit SP2, this happens at least 2 times in
+  SOFTWARE\Microsoft tree.
+reged:
+- On popular demand: .reg file import!! (-I)
+- Will read files from regedit.exe in most cases
+  (UTF-16) but can miss on some international characters. Also reads
+  "latin" (8 bit) files.
+- Only one .reg and hive at a time supported.
+- Did quite a lot of testing by importing for example the
+  SOFTWARE\Classes tree with regedit.exe and importing it again into
+  the DEFAULT hive with my tool, then ask windows to "Load hive" (in
+  regedit.exe). If it does not complain in the event log, it is good.
+  (Also, seems like windows has gotten better at not bluescreening on
+  a corrupt registry hive, did not get a single one when doing this
+  with pretty messed up hives in win7 and Vista)
+- Be aware that .reg import is currently very slow, since I messed
+  up the design for the string reading badly, and also the add routines is
+  not exactly optimized. Consider it a proof of concept! Example:
+  Import of SOFTWARE\Microsoft tree (exported by regedit.exe) into the
+  small DEFAULT hive took more than 10 minutes on a pretty fast
+  machine. Especially hex data is slow (one byte at a time.. lazy me..)
+- WARNING: .reg file import does not do much sanity checking of the
+  input .reg file. It will either crash during import or mess up
+  the registry if the .reg file is bad.
+- WARNING2: Limitation: Be careful when importing keys that has large
+  number of subkeys (like several 1000) since it does not split up
+  into indirect indexes (lh) yet, and windows may not like it.
+- -N and -E options for safe mode edit (no alloc and no expand hive)
+- Importing (-I) and then into edit (-e) before save possible, 
+  by specifying both options.
+- -I and -C (-IC) will import and auto-save, use this in scripts.
+chntpw:
+- This version has no significant changes in the password (reset)
+  handling part of the tools.
+TODO list:
+- Windows like API. Faster .reg import. Fix bugs! Maybe not in that
+order :)
+
+
+* v 0.99.6 100627
+ chntpw:
+ - Syskey not visible in menu anymore, but is still selectable as # 2
+   This because too many people just went ahead without understanding
+   its purpose, and the emailed me when things went as expected, that
+   is it went *boom*
+ - Interactive menu adapts to show most relevant selections based
+   on what is loaded
+ reged:
+ - Patches from Frediano Ziglio adding or fixing:
+   buffer overflow in export_subkey printing keyname
+   some quoting error (name and string values must be quoted)
+   missing support for wide character encoding in keys and value names
+ regedit library (chntpw and reged uses it):
+ - New function from  Aleksander Wojdyga: dpi, to decode product IDs
+   Can be used on for example \Microsoft\Windows NT\CurrentVersion\DigitalProductId
+   to find the systems product ID in cleartext.
+   Now as command in registry editor, but may be moved to chnpw menu later.
 
 * v 0.99.6 080526
  reged:

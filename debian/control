@@ -2,7 +2,7 @@ Source: chntpw
 Section: admin
 Priority: optional
 Maintainer: Javier Fernandez-Sanguino Pen~a <jfs@debian.org>
-Build-Depends: debhelper (>> 3.0.0), libgcrypt11-dev | libssl-dev, sharutils, quilt
+Build-Depends: debhelper (>> 3.0.0), libgcrypt11-dev | libgcrypt-dev, sharutils, quilt
 Standards-Version: 3.8.4
 Homepage: http://pogostick.net/~pnh/ntpasswd/
 

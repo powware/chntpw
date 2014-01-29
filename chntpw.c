@@ -1,10 +1,14 @@
 /*
- * chntpw.c - Offline Password Edit Utility for NT 3.51 4.0 5.0 5.1 6.0 SAM database.
+ * chntpw.c - Offline Password Edit Utility for Windows SAM database
  *
- * This program uses the "ntreg" library to load and access the registry, it's purpose
- * is to reset password based information.
- * There is also a simple commandline based registry editor included.
- * 
+ * This program uses the "ntreg" library to load and access the registry,
+ * it's main purpose is to reset password based information.
+ * It can also call the registry editor etc
+ 
+ * 2011-apr: Command line options added for hive expansion safe mode
+ * 2010-jun: Syskey not visible in menu, but is selectable (2)
+ * 2010-apr: Interactive menu adapts to show most relevant
+ *           selections based on what is loaded
  * 2008-mar: Minor other tweaks
  * 2008-mar: Interactive reg ed moved out of this file, into edlib.c
  * 2008-mar: 64 bit compatible patch by Mike Doty, via Alon Bar-Lev
@@ -29,7 +33,7 @@
  *
  *****
  *
- * Copyright (c) 1997-2008 Petter Nordahl-Hagen.
+ * Copyright (c) 1997-2011 Petter Nordahl-Hagen.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,7 +75,7 @@
 #include "ntreg.h"
 #include "sam.h"
 
-const char chntpw_version[] = "chntpw version 0.99.6 080526 (sixtyfour), (c) Petter N Hagen";
+const char chntpw_version[] = "chntpw version 0.99.6 110511 , (c) Petter N Hagen";
 
 extern char *val_types[REG_MAX+1];
 
@@ -792,10 +796,8 @@ int list_users(int pageit)
 
     /* Extract the value out of the username-key, value is RID  */
     snprintf(s,180,"\\SAM\\Domains\\Account\\Users\\Names\\%s\\@",ex.name);
-    rid = get_dword(hive[H_SAM], 0, s, TPF_VK_EXACT);
+    rid = get_dword(hive[H_SAM], 0, s, TPF_VK_EXACT|TPF_VK_SHORT);
     if (rid == 500) strncpy(admuser,ex.name,128); /* Copy out admin-name */
-
-    /*    printf("name: %s, rid: %d (0x%0x)\n", ex.name, rid, rid); */
 
     /* Now that we have the RID, build the path to, and get the V-value */
     snprintf(s,180,"\\SAM\\Domains\\Account\\Users\\%08X\\V",rid);
@@ -825,7 +827,6 @@ int list_users(int pageit)
 void find_n_change(char *username)
 {
   char s[200];
-  struct vk_key *vkkey;
   struct keyval *v;
   int rid = 0;
 
@@ -835,7 +836,7 @@ void find_n_change(char *username)
   if (!rid) { /* Look up username */
     /* Extract the unnamed value out of the username-key, value is RID  */
     snprintf(s,180,"\\SAM\\Domains\\Account\\Users\\Names\\%s\\@",username);
-    rid = get_dword(hive[H_SAM],0,s, TPF_VK_EXACT);
+    rid = get_dword(hive[H_SAM],0,s, TPF_VK_EXACT|TPF_VK_SHORT);
     if (rid == -1) {
       printf("Cannot find value <%s>\n",s);
       return;
@@ -856,7 +857,7 @@ void find_n_change(char *username)
 
   if (v->len < 0xcc) {
     printf("Value <%s> is too short (only %d bytes) to be a SAM user V-struct!\n",
-	   s, vkkey->len_data);
+	   s, v->len);
   } else {
     change_pw( (char *)&v->data , rid, v->len, 0);
     if (dirty) {
@@ -933,7 +934,7 @@ void handle_syskey(void)
 
   secboot = -1;
   if (H_SYS >= 0) {
-    secboot = get_dword(hive[H_SYS], 0, "\\ControlSet001\\Control\\Lsa\\SecureBoot", TPF_VK_EXACT);
+    secboot = get_dword(hive[H_SYS], 0, "\\ControlSet001\\Control\\Lsa\\SecureBoot", TPF_VK_EXACT );
   }
 
   secmode = -1;
@@ -992,11 +993,11 @@ void handle_syskey(void)
     printf("\n** IF YOU DON'T KNOW WHAT SYSKEY IS YOU DO NOT NEED TO SWITCH IT OFF!**\n");
     printf("NOTE: On WINDOWS 2000 and XP it will not be possible\n");
     printf("to turn it on again! (and other problems may also show..)\n\n");
-    printf("EXTREME WARNING: Do not try this on Vista, it will go into endless re-boots\n\n");
     printf("NOTE: Disabling syskey will invalidate ALL\n");
     printf("passwords, requiring them to be reset. You should at least reset the\n");
     printf("administrator password using this program, then the rest ought to be\n");
     printf("done from NT.\n");
+    printf("\nEXTREME WARNING: Do not try this on Vista or Win 7, it will go into endless re-boots\n\n");
 
     fmyinput("\nDo you really wish to disable SYSKEY? (y/n) [n] ",yn,2);
     if (*yn == 'y') {
@@ -1098,7 +1099,7 @@ void recoveryconsole()
   sec = get_dword(hive[H_SOF],0,slpath,TPF_VK_EXACT);
 
   if (cmd == -1 && sec == -1) {
-    printf("\nDid not find registry entries for RecoveryConsole.\n(RecoveryConsole is only in Windows 2000 and XP, not Vista)\n");
+    printf("\nDid not find registry entries for RecoveryConsole.\n(RecoveryConsole is only in Windows 2000 and XP)\n");
     return;
   }
 
@@ -1130,10 +1131,25 @@ void interactive(void)
     for (il = 0; il < no_hives; il++) {
       printf(" <%s>",hive[il]->filename);
     }
-    printf("\n\n  1 - Edit user data and passwords\n"
-	   "  2 - Syskey status & change\n"
-	   "  3 - RecoveryConsole settings\n"
-	   "      - - -\n"
+
+    printf("\n\n");
+
+    /* Make menu selection depending on what is loaded
+       but it is still possible to select even if not shown */
+
+    if (H_SAM >= 0) printf("  1 - Edit user data and passwords\n");
+
+#if 0
+    if (H_SAM >= 0 && H_SYS >= 0 && H_SEC >= 0) {
+      printf("  2 - Syskey status & change\n");
+    }
+#endif
+    if (H_SOF >= 0) {
+      printf("  3 - RecoveryConsole settings\n");
+      printf("  4 - Show product key (DigitalProductID)\n");
+    }
+
+    printf("      - - -\n"
 	   "  9 - Registry editor, now with full write support!\n"
 	   "  q - Quit (you will be asked if there is something to save)\n"
 	   "\n\n");
@@ -1146,6 +1162,7 @@ void interactive(void)
       case '1': useredit(); break;
       case '2': handle_syskey(); break;
       case '3': recoveryconsole(); break;
+      case '4': cat_dpi(hive[H_SOF],0,"\\Microsoft\\Windows NT\\CurrentVersion\\DigitalProductId"); break;
       case '9': mainloop(); break;
       case 'q': return; break;
       }
@@ -1156,7 +1173,9 @@ void interactive(void)
   
 
 void usage(void) {
-   printf("chntpw: change password of a user in a NT/2k/XP/2k3/Vista SAM file, or invoke registry editor.\n"
+   printf("chntpw: change password of a user in a Windows SAM file,\n"
+	  "or invoke registry editor. Should handle both 32 and 64 bit windows and\n"
+	  "all version from NT3.x to Win7\n"
 	  "chntpw [OPTIONS] <samfile> [systemfile] [securityfile] [otherreghive] [...]\n"
 	  " -h          This message\n"
 	  " -u <user>   Username to change, Administrator is default\n"
@@ -1164,10 +1183,10 @@ void usage(void) {
 	  " -i          Interactive. List users (as -l) then ask for username to change\n"
 	  " -e          Registry editor. Now with full write support!\n"
 	  " -d          Enter buffer debugger instead (hex editor), \n"
-          " -t          Trace. Show hexdump of structs/segments. (deprecated debug function)\n"
           " -v          Be a little more verbose (for debuging)\n"
-	  " -L          Write names of changed files to /tmp/changed\n"
-	  " -N          No allocation mode. Only (old style) same length overwrites possible\n"
+	  " -L          For scripts, write names of changed files to /tmp/changed\n"
+	  " -N          No allocation mode. Only same length overwrites possible (very safe mode)\n"
+	  " -E          No expand mode, do not expand hive file (safe mode)\n"
           "See readme file on how to get to the registry files, and what they are.\n"
           "Source/binary freely distributable under GPL v2 license. See README for details.\n"
           "NOTE: This program is somewhat hackish! You are on your own!\n"
@@ -1185,7 +1204,7 @@ int main(int argc, char **argv)
    char iwho[100];
    FILE *ch;     /* Write out names of touched files to this */
    
-   char *options = "LNidehltvu:";
+   char *options = "LENidehlvu:";
    
    printf("%s\n",chntpw_version);
    while((c=getopt(argc,argv,options)) > 0) {
@@ -1194,8 +1213,8 @@ int main(int argc, char **argv)
        case 'e': edit = 1; break;
        case 'L': logchange = 1; break;
        case 'N': mode |= HMODE_NOALLOC; break;
+       case 'E': mode |= HMODE_NOEXPAND; break;
        case 'l': list = 1; who = 0; break;
-       case 't': list = 3; who = 0; mode |= HMODE_TRACE; break;
        case 'v': mode |= HMODE_VERBOSE; gverbose = 1; break;
        case 'i': list = 2; who = 0; inter = 1; break;
        case 'u': who = optarg; list = 2; break;
@@ -1240,7 +1259,10 @@ int main(int argc, char **argv)
      printf("\nHives that have changed:\n #  Name\n");
      for (il = 0; il < no_hives; il++) {
        if (hive[il]->state & HMODE_DIRTY) {
-	 if (!logchange) printf("%2d  <%s>\n",il,hive[il]->filename);
+	 if (!logchange) printf("%2d  <%s>",il,hive[il]->filename);
+	 if (hive[il]->state & HMODE_DIDEXPAND) printf(" WARNING: File was expanded! Expermental! Use at own risk!\n");
+	 printf("\n");
+
 	 d = 1;
        }
      }
@@ -1256,7 +1278,9 @@ int main(int argc, char **argv)
 	   if (hive[il]->state & HMODE_DIRTY) {
 	     printf("%2d  <%s> - ",il,hive[il]->filename);
 	     if (!writeHive(hive[il])) {
-	       printf("OK\n");
+	       printf("OK");
+	       if (hive[il]->state & HMODE_DIDEXPAND) printf(" WARNING: File was expanded! Expermental! Use at own risk!\n");
+	       printf("\n");
 	       if (logchange) fprintf(ch,"%s ",hive[il]->filename);
 	       dd = 2;
 	     }

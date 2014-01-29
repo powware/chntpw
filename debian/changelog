@@ -1,3 +1,20 @@
+chntpw (0.99.6.110511-1) unstable; urgency=medium
+
+  * Update to latest upstream release, publised in 2011-05-09 (Closes: #615965)
+  * Change Build-Dep to use 'libgcrypt11-dev | libgcrypt-dev' instead of
+    'libgcrypt11-dev | libssl-dev' (Closes: #639350)
+  * debian/patches:
+    - Refreshed patches
+    - Remove patches that do not apply anymore, some of these
+      were incorporated upstream.
+    - Fix 09_improve_robustness, the length of the input call was
+      not being properly calculated, resulting in chntpwd not clearing
+      the password properly. This was fixed in Fedora's patches see:
+      http://pkgs.fedoraproject.org/cgit/chntpw.git/commit/?id=13bf89e14642a0da681384de5b6360178c3f8d57
+      (Closes: #705292)
+
+ -- Javier Fernández-Sanguino Peña <jfs@debian.org>  Wed, 29 Jan 2014 19:47:17 +0100
+
 chntpw (0.99.6-2) unstable; urgency=low
 
   * Add patches provided by Fedora to fix regex -x crahses, see 
