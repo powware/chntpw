@@ -1,7 +1,7 @@
 
 The Offline NT Password Editor
 
-(c) 1997-2008 Petter Nordahl-Hagen
+(c) 1997-2011 Petter Nordahl-Hagen
 
 This is free software, licensed under the following:
 
@@ -19,7 +19,7 @@ See INSTALL.txt for compile/installation instructions.
 Where to get more info:
 -----------------------
 
-http://home.eunet.no/~pnordahl/ntpasswd/
+http://pogostick.net/~pnh/ntpasswd/
 
 At that site there's a floppy and a bootable CD that use chntpw to
 access the NT/2k/XP/Vista-system it is booted on to edit password etc.
@@ -29,12 +29,20 @@ What does chntpw do?
 --------------------
 
 This little program will enable you to view some information and
-change user passwords in a Windows NT SAM userdatabase file.
+change user passwords in a Windows (NT/XP/Vista/win7) etc SAM userdatabase file.
 You do not need to know the old passwords.
 However, you need to get at the file some way or another yourself.
 In addition it contains a simple registry editor with full write support,
 and hex-editor which enables you to
 fiddle around with bits&bytes in the file as you wish yourself.
+
+Also have registry import or export
+-----------------------------------
+
+"reged" is a program that can do import and export of .reg files into
+the registry hive (binary) files. Also has an editor, but still
+rudimentary text based command line type thing.
+
 
 Why?
 ----
@@ -57,7 +65,7 @@ to compile on other platforms, too.
 So, to set a new adminpassword on your NT installation you either:
 1) Take the harddrive and mount it on a linux-box
 2) Use a linux-bootdisk or CD
-   one is available at: http://home.eunet.no/~pnordahl/ntpasswd/
+   one is available at: http://pogostick.net/~pnh/ntpasswd/
 ie. you do it offline, with the NT system down.
 
 Usage:

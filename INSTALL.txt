@@ -1,7 +1,7 @@
 
 The Offline NT Password & Registry Editor
 
-(c) 1997-2008 Petter Nordahl-Hagen
+(c) 1997-2011 Petter Nordahl-Hagen
 
 This file is meant for developers.
 
@@ -36,7 +36,7 @@ If make goes well, you should have:
  reged - Registry edit tool, dynamic linked with libc. No crypto.
  reged.static - Registry too, statically linked.
  cpnt - Simple copy utility, does not truncate file on write
-        (was at least needed earlier for NTFS writes)
+        Now deprecated, was at least needed earlier for NTFS writes.
 
 Also, the floppies and CDs are build under a different
 environment for small libc size (uClibc), see website

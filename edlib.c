@@ -4,12 +4,26 @@
  * Point of this is so that interactive registry editor
  * can be accessed from several other programs
  * 
+ * 2010-jun: New function from  Aleksander Wojdyga: dpi, decode product ID
+ *           Mostly used on \Microsoft\Windows NT\CurrentVersion\DigitalProductId
+ *           Now as command in registry editor, but may be moved to chnpw menu later.
+ * 2010-apr: Lots of bugfix and other patches from
+ *           Frediano Ziglio <freddy77@gmail.com>
+ *           His short patch comments:
+ *           remove leak
+ *           fix default value, bin and quote
+ *           support wide char in key
+ *           support wide character into value names
+ *           fix export for string with embedded end lines
+ *           remove some warnings
+ *           compute checksum writing
+ *
  * 2008-mar: First version. Moved from chntpw.c
  * See HISTORY.txt for more detailed info on history.
  *
  *****
  *
- * Copyright (c) 1997-2007 Petter Nordahl-Hagen.
+ * Copyright (c) 1997-2011 Petter Nordahl-Hagen.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,9 +48,10 @@
 
 #include "ntreg.h"
 
-const char edlib_version[] = "edlib version 0.1 080526, (c) Petter N Hagen";
+const char edlib_version[] = "edlib version 0.1 110511, (c) Petter N Hagen";
 
-#undef ALLOC_DEBUG      /* Reg allocation debug hooks */
+#define ALLOC_DEBUG 0     /* Reg allocation debug hooks */
+#define ADDBIN_DEBUG 0     /* Reg expansion debug hooks */
 
 extern char *val_types[REG_MAX+1];
 
@@ -65,6 +80,8 @@ struct cmds {
 #define MCMD_CATHEX 18
 #define MCMD_RDEL 19
 #define MCMD_CK 20
+#define MCMD_CAT_DPI 21
+#define MCMD_ADDBIN 22
 
 struct cmds maincmds[] = {
  { "cd" , MCMD_CD } ,
@@ -81,6 +98,9 @@ struct cmds maincmds[] = {
  { "alloc", MCMD_ALLOC } ,
  { "free", MCMD_FREE } ,
 #endif
+#if ADDBIN_DEBUG
+ { "addbin", MCMD_ADDBIN },
+#endif
  { "nv", MCMD_ADDV } ,
  { "dv", MCMD_DELV } ,
  { "delallv", MCMD_DELVALL } ,
@@ -91,8 +111,72 @@ struct cmds maincmds[] = {
  { "ek", MCMD_EXPORTKEY },
  { "ck", MCMD_CK } ,
  { "?", MCMD_HELP } ,
+ { "dpi", MCMD_CAT_DPI } ,
  { "", 0 }
 };
+
+/* display decoded DigitalProductId
+ * nkofs = node
+ * path = "DigitalProductId" or some other
+ */
+void cat_dpi(struct hive *hdesc, int nkofs, char *path)
+{
+  void *data;
+  int len,i,type;
+
+  type = get_val_type(hdesc, nkofs, path, 0);
+  if (type == -1) {
+    printf("cat_dpi: No such value <%s>\n",path);
+    return;
+  }
+
+  len = get_val_len(hdesc, nkofs, path, 0);
+  if (len < 67) {
+    printf("cat_dpi: Value <%s> is too short for decoding\n",path);
+    return;
+  }
+
+  data = (void *)get_val_data(hdesc, nkofs, path, 0, 0);
+  if (!data) {
+    printf("cat_dpi: Value <%s> references NULL-pointer (bad boy!)\n",path);
+    abort();
+    return;
+  }
+
+  if (type != REG_BINARY) {
+    printf ("Only binary values\n");
+    return;
+  }
+
+  printf("Value <%s> of type %s, data length %d [0x%x]\n", path,
+	 (type < REG_MAX ? val_types[type] : "(unknown)"), len, len);
+
+
+  char digits[] = {'B','C','D','F','G','H','J','K','M','P','Q','R','T','V','W','X','Y','2','3','4','6','7','8','9'}; 
+
+#define RESULT_LEN 26
+  char result[RESULT_LEN];
+  memset (result, 0, RESULT_LEN);
+
+#define START_OFFSET 52
+#define BUF_LEN 15
+  unsigned char buf[BUF_LEN];
+  memcpy (buf, data + START_OFFSET, BUF_LEN);
+
+  for (i = RESULT_LEN - 2; i >= 0; i--) {
+        unsigned int x = 0;
+
+        int j;
+        for (j = BUF_LEN - 1; j >= 0; j--) {
+            x = (x << 8) + buf[j];
+            buf[j] = x / 24;
+            x = x % 24;
+        }
+        result[i] = digits[x];
+  }
+
+  printf ("\nDecoded product ID: [%s]\n", result);
+}
 
 /* display (cat) the value,
  * vofs = offset to 'nk' node, paths relative to this (or 0 for root)
@@ -103,26 +187,39 @@ void cat_vk(struct hive *hdesc, int nkofs, char *path, int dohex)
 {     
   void *data;
   int len,i,type;
-  char string[SZ_MAX+1];
+  //  char string[SZ_MAX+1];
+  char *string = NULL;
+  struct keyval *kv = NULL;
 
-  type = get_val_type(hdesc, nkofs, path, 0);
+  type = get_val_type(hdesc, nkofs, path, TPF_VK);
   if (type == -1) {
     printf("cat_vk: No such value <%s>\n",path);
     return;
   }
 
-  len = get_val_len(hdesc, nkofs, path, 0);
+  len = get_val_len(hdesc, nkofs, path, TPF_VK);
   if (!len) {
     printf("cat_vk: Value <%s> has zero length\n",path);
     return;
   }
 
-  data = (void *)get_val_data(hdesc, nkofs, path, 0, 0);
+#if 0
+  data = (void *)get_val_data(hdesc, nkofs, path, 0, TPF_VK);
   if (!data) {
     printf("cat_vk: Value <%s> references NULL-pointer (bad boy!)\n",path);
     abort();
     return;
   }
+#endif
+
+  kv = get_val2buf(hdesc, NULL, nkofs, path, 0, TPF_VK);
+
+  if (!kv) {
+    printf("cat_vk: Value <%s> could not fetch data\n",path);
+    abort();
+  }
+  data = (void *)&(kv->data);
+
 
   printf("Value <%s> of type %s, data length %d [0x%x]\n", path,
 	 (type < REG_MAX ? val_types[type] : "(unknown)"), len, len);
@@ -132,12 +229,14 @@ void cat_vk(struct hive *hdesc, int nkofs, char *path, int dohex)
   case REG_SZ:
   case REG_EXPAND_SZ:
   case REG_MULTI_SZ:
-    cheap_uni2ascii(data,string,len);
+    string = string_regw2prog(data, len);
+    //    cheap_uni2ascii(data,string,len);
     for (i = 0; i < (len>>1)-1; i++) {
       if (string[i] == 0) string[i] = '\n';
       if (type == REG_SZ) break;
     }
     puts(string);
+    FREE(string);
     break;
   case REG_DWORD:
     printf("0x%08x",*(unsigned short *)data);
@@ -148,6 +247,8 @@ void cat_vk(struct hive *hdesc, int nkofs, char *path, int dohex)
     hexdump((char *)data, 0, len, 1);
   }
   putchar('\n');
+  FREE(kv);
+
 }
 
 /* Edit value: Invoke whatever is needed to edit it
@@ -288,7 +389,7 @@ void edit_val(struct hive *h, int nkofs, char *path)
       newsize = atoi(inbuf);
       ALLOC(newkv,1,newsize+sizeof(int)+4);
       bzero(newkv,newsize+sizeof(int)+4);
-      memcpy(newkv, kv, (len < newsize) ? (len) : (newsize) +sizeof(int));
+      memcpy(newkv, kv, ((len < newsize) ? (len) : (newsize)) + sizeof(int));
       FREE(kv);
       kv = newkv;
       kv->len = newsize;
@@ -398,6 +499,7 @@ void regedit_interactive(struct hive *hive[], int no_hives)
 	printf("cd <key>               - change current key\n");
 	printf("ls | dir [<key>]       - show subkeys & values,\n");
         printf("cat | type <value>     - show key value\n");
+        printf("dpi <value>            - show decoded DigitalProductId value\n");
         printf("hex <value>            - hexdump of value data\n");
 	printf("ck [<keyname>]         - Show keys class data, if it has any\n");
 	printf("nk <keyname>           - add key\n");
@@ -448,7 +550,7 @@ void regedit_interactive(struct hive *hive[], int no_hives)
 	}
         add_value(hdesc, cdofs+4, bp, nh);
 	break;
-#ifdef ALLOC_DEBUG
+#if ALLOC_DEBUG
       case MCMD_FREE :
 	bp++;
 	skipspace(&bp);
@@ -460,6 +562,14 @@ void regedit_interactive(struct hive *hive[], int no_hives)
 	skipspace(&bp);
 	nh = gethex(&bp);
         alloc_block(hdesc, cdofs+4, nh);
+	break;
+#endif
+#if ADDBIN_DEBUG
+      case MCMD_ADDBIN :
+	bp++;
+	skipspace(&bp);
+	nh = gethex(&bp);
+        add_bin(hdesc, nh);
 	break;
 #endif
       case MCMD_LS :
@@ -522,6 +632,11 @@ void regedit_interactive(struct hive *hive[], int no_hives)
 	skipspace(&bp);
 	cat_vk(hdesc,cdofs+4,bp,0);
 	break;
+      case MCMD_CAT_DPI:
+	bp++;
+	skipspace(&bp);
+	cat_dpi (hdesc, cdofs+4, bp);
+	break;
       case MCMD_CATHEX:
 	bp++;
 	skipspace(&bp);
@@ -559,7 +674,7 @@ void regedit_interactive(struct hive *hive[], int no_hives)
 	if (*bp) {
 	  vkofs = gethex(&bp);
 	}
-	parse_block(hdesc,vkofs,1);
+	parse_block(hdesc,vkofs,2);
 	break;
       case MCMD_DEBUG:
 	if (debugit(hdesc->buffer,hdesc->size)) hdesc->state |= HMODE_DIRTY;
@@ -568,7 +683,7 @@ void regedit_interactive(struct hive *hive[], int no_hives)
         return;
         break;
       default:
-	printf("Unknown command: %s\n",bp);
+	printf("Unknown command: %s, type ? for help\n",bp);
 	break;
       }
     }

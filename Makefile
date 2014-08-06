@@ -13,7 +13,7 @@ OSSLINC=$(OSSLPATH)/include
 CC=gcc
 
 # Force 32 bit
-CFLAGS= -DUSEOPENSSL -g -I. -I$(OSSLINC) -Wall -m32
+CFLAGS= -DUSEOPENSSL -g -I. -I$(OSSLINC) -Wall -m32 
 OSSLLIB=$(OSSLPATH)/lib
 
 # 64 bit if default for compiler setup

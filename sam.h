@@ -4,7 +4,7 @@
  *****
  *
  * NTREG - Window registry file reader / writer library
- * Copyright (c) 1997-2007 Petter Nordahl-Hagen.
+ * Copyright (c) 1997-2011 Petter Nordahl-Hagen.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
