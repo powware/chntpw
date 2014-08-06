@@ -1,6 +1,56 @@
+chntpw (1.0-1) unstable; urgency=low
+
+  * Update to latest upstream release, published in 2014-02-01
+  * debian/rules: Provide also the other binaries built in the sources:
+    reged (Simple Registry Edit Utility for Windows registry hives),
+    sampasswd (SAM database, add or remove user in a group),
+    samusrgrp (SAM database, add or remove user in a group)
+  * debian/samusrgrp.8 debian/reged.8 debian/sampasswd.8: Write manpages
+    for all of the other programs built and included now in the package
+  * debian/chntpw.8: Update the manpage contents based on the program's
+     current -h output.
+  * debian/patches/01_port_to_gcrypt.patch: 
+        Update patch since in this release upstream author uses a new define
+        (DOCRYPTO) that enables cryptographic code.  This code, that enabled
+        users to change the password, is not enabled by default anymore since
+        it does not work with Windows XP (and later) systems.
+  * debian/patches/11_improve_documentation:
+        Add a new patch to improve the English (by a non-native speaker
+        oh! the irony!) of the HISTORY.txt and MANUAL.txt files, fixing
+        grammar and spelling mistakes, as well as some typos.
+  * debian/changelog: Fix typo and add reference to Ubuntu closed bug
+  * debian/control:
+      - Require debhelp version 5, as per debian/compat
+  * debian/rules: 
+      - Update definitions to adapt to this version and upstream's numbering
+        (140201)
+  * Lintian fixes:
+      - Remove statically compiled files from sources (Fixes: source-is-missing)
+      - debian/copyright: point to the versioned license files, not the
+        symlinks since the source does not allow the use of later GPL
+        versions (Fixes: copyright-refers-to-versionless-license-file)
+      - debian/chntpw.8: Fix manpage error (Fixes:
+        manpage-has-errors-from-man)
+      - debian/rules: 
+            + Added missing targets build-indep and build-arch (fixes:
+            debian-rules-missing-recommended-target)
+            + Include buildflags.mk provided by dpkg-dev (fixes:
+            hardening-no-relro)
+      - debian/control: 
+          + Added  ${misc:Depends} (fixes: debhelper-but-no-misc-depends)
+          + Use UTF-8 version of maintainer's second surname (i.e. 'ñ' instead
+          of 'n~') this prevents tools from thinking the uploads are a NMU
+          when they are not (fixes: changelog-should-mention-nmu)
+          + Update Standards Version to 3.9.5, no changes needed (fixes:
+          ancient-standards-version)
+      - debian/docs: Remove HISTORY.txt, it is included as a changelog already
+        (fixes: duplicate-changelog-files)
+
+ -- Javier Fernández-Sanguino Peña <jfs@debian.org>  Wed, 06 Aug 2014 22:23:44 +0200
+
 chntpw (0.99.6.110511-1) unstable; urgency=medium
 
-  * Update to latest upstream release, publised in 2011-05-09 (Closes: #615965)
+  * Update to latest upstream release, published in 2011-05-09 (Closes: #615965) (LP: #637623)
   * Change Build-Dep to use 'libgcrypt11-dev | libgcrypt-dev' instead of
     'libgcrypt11-dev | libssl-dev' (Closes: #639350)
   * debian/patches:
@@ -44,7 +94,7 @@ chntpw (0.99.6-1) unstable; urgency=low
     and not in the Makefile
   * Update homepage location and upstream's email in debian/copyright
   * Update homepage location in the manpage
-  [ Changes by Philippe Coval <rzr@gna.org> ]
+  [ Changes by Philippe Coval <rzr@gna.org> ]package
   * Merged Tanguy Ortolo's manpage patch that updates
     the debian/chntpwd.8 manpage with additional information such as the
     SAM database location (Closes: #569943)

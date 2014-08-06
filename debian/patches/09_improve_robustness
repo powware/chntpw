@@ -11,7 +11,7 @@ the third one was added to address an error found using valgrind:
 * ntreg.c (openHive): Don't read uninitialized when file is too small.
 --- a/ntreg.c
 +++ b/ntreg.c
-@@ -190,14 +190,18 @@
+@@ -227,14 +227,18 @@
  
  int fmyinput(char *prmpt, char *ibuf, int maxlen)
  {
@@ -34,7 +34,7 @@ the third one was added to address an error found using valgrind:
  }
  
  /* Print len number of hexbytes */
-@@ -4127,6 +4131,14 @@
+@@ -4250,6 +4254,14 @@
      closeHive(hdesc);
      return(NULL);
    }

@@ -5,7 +5,7 @@ initially closed)
 
 --- a/ntreg.c
 +++ b/ntreg.c
-@@ -4029,7 +4029,7 @@
+@@ -4133,7 +4133,7 @@
    if ( !(hdesc->state & HMODE_DIRTY)) return(0);
  
    if ( !(hdesc->state & HMODE_OPEN)) { /* File has been closed */
