@@ -9,3 +9,6 @@
 09_improve_robustness
 10_remove_static
 11_improve_documentation
+12_readonly_filesystem
+13_write_to_hive
+14_improve_description
