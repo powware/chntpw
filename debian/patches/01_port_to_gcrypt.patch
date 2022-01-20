@@ -1,9 +1,9 @@
-01_port_to_gcrypt.patch
-Paul Wise <pabs@debian.org>
-Placed in the public domain
-Port to libgcrypt to avoid GPL/OpenSSL incompatibility
-Forwarded to Petter Nordahl-Hagen <pnordahl@eunet.no>
-Updated by Philippe Coval <rzr@gna.org> for debian
+Description: Port to libgcrypt to avoid GPL/OpenSSL incompatibility
+ Patch to port the sources to libgcrypt
+ Placed in the public domain
+Forwarded: Sent by email to Petter Nordahl-Hagen <pnordahl@eunet.no>
+Author: Paul Wise <pabs@debian.org>
+Author: Philippe Coval <rzr@gna.org> for debian
 
 --- a/chntpw.c
 +++ b/chntpw.c

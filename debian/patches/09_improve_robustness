@@ -1,14 +1,19 @@
-
-The first two were spotted via inspection by Fedora team,
-the third one was added to address an error found using valgrind:
+Description: Fix issues in code
+ The first two were spotted via inspection by Fedora team,
+ the third one was added to address an error found using valgrind:
    $ : > j && valgrind ./reged -e j
        ~/w/co/chntpw: 
   ==16084==    by 0x4011E3: main (reged.c:103)
      get_abs_path: Not a 'nk' node!
 
-* ntreg.c (fmyinput): Don't clobber ibuf[-1] upon NUL input.
-* ntreg.c (convert_string): Don't segfault upon low memory.
-* ntreg.c (openHive): Don't read uninitialized when file is too small.
+  * ntreg.c (fmyinput): Don't clobber ibuf[-1] upon NUL input.
+  * ntreg.c (convert_string): Don't segfault upon low memory.
+  * ntreg.c (openHive): Don't read uninitialized when file is too small.
+Author: Jim Meyering <meyering@redhat.com>
+Date: Mon, 20 Jul 2009 17:31:40 +0200
+Forwarded: no
+
+
 --- a/ntreg.c
 +++ b/ntreg.c
 @@ -227,14 +227,18 @@

@@ -1,7 +1,6 @@
-10_remove_static
-Do not build static files in the Makefile, they are not used in Debian.
-Created by Javier Fernandez-Sanguino <jfs@debian.org> for Debian
-Not forwarded, this patch is Debian-specific
+Description: Do not build static files in the Makefile, they are not used in Debian.
+Author: Javier Fernandez-Sanguino <jfs@debian.org> for Debian
+Forwarded: not-needed, this patch is Debian-specific
 
 --- a/Makefile
 +++ b/Makefile

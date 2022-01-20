@@ -1,8 +1,8 @@
-Fix code that probably is never run since the existing code is totally bogus.
-The condition, !open(...), will almost always be true.
-(sole exception is when starting a program with stdin
-initially closed)
-
+Description: Fix code in source
+  Fix code that probably is never run since the existing code is totally bogus.
+  The condition, !open(...), will almost always be true.  (sole exception is
+  when starting a program with stdin initially closed)
+Forwarded: no
 --- a/ntreg.c
 +++ b/ntreg.c
 @@ -4133,7 +4133,7 @@

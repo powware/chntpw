@@ -14,6 +14,8 @@ chntpw (1:140201-1) unstable; urgency=medium
   [ Javier Fernández-Sanguino ]
   * Add VCS fields in debian/control
   * Updated Standards-Version
+  * debian/watch: updated to version 4
+  * Add description to all patches (lintian fix)
 
  -- Javier Fernández-Sanguino Peña <jfs@debian.org>  Thu, 20 Jan 2022 22:35:49 +0100
 

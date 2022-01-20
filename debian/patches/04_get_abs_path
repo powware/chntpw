@@ -1,3 +1,6 @@
+Description: Fix absolute path
+Forwarded: no
+Author: Unknown
 --- a/ntreg.c
 +++ b/ntreg.c
 @@ -1511,6 +1511,7 @@

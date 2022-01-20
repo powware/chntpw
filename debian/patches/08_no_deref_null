@@ -1,4 +1,5 @@
-Diagnose a missing hive file name with -e.
+Description: Diagnose a missing hive file name with -e.
+Forwarded: no
 --- a/reged.c
 +++ b/reged.c
 @@ -167,6 +167,11 @@
