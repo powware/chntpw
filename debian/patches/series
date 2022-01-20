@@ -7,6 +7,5 @@
 07_detect_failure_to_write_key
 08_no_deref_null
 09_improve_robustness
-changes_to_Makefile.patch
 10_remove_static
 11_improve_documentation
