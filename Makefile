@@ -2,14 +2,28 @@
 # Makefile for the Offline NT Password Editor
 #
 #
+# Change here to point to the needed OpenSSL libraries & .h files
+# See INSTALL for more info.
+#
+
+#SSLPATH=/usr/local/ssl
+OSSLPATH=/usr
+OSSLINC=$(OSSLPATH)/include
 
 CC=gcc
 
 # Force 32 bit
-CFLAGS= -DUSELIBGCRYPT -I. $(shell libgcrypt-config --cflags) -Wall -m32
+CFLAGS= -DUSEOPENSSL -g -I. -I$(OSSLINC) -Wall -m32 
 OSSLLIB=$(OSSLPATH)/lib
 
-LIBS=$(shell libgcrypt-config --libs)
+# 64 bit if default for compiler setup
+#CFLAGS= -DUSEOPENSSL -g -I. -I$(OSSLINC) -Wall
+#OSSLLIB=$(OSSLPATH)/lib64
+
+
+# This is to link with whatever we have, SSL crypto lib we put in static
+#LIBS=-L$(OSSLLIB) $(OSSLLIB)/libcrypto.a
+LIBS=-L$(OSSLLIB)
 
 
 all: chntpw chntpw.static cpnt reged reged.static samusrgrp samusrgrp.static sampasswd sampasswd.static
