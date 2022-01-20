@@ -5,6 +5,11 @@ chntpw (1.0-2) UNRELEASED; urgency=medium
   * include the Makefile changes that was out of d/patches in
     01_port_to_gcrypt.patch
 
+  [ Helmut Grohne ]
+  * Fix FTCBFS: Let dh_auto_build pass cross tools to make.
+    (Closes: #902549)
+  * Remove unused/wrong INSTALL_PROGRAM variable.
+
  -- Fabio Fantoni <fantonifabio@tiscali.it>  Sun, 16 Jan 2022 20:16:12 +0100
 
 chntpw (1.0-1.1) unstable; urgency=low
