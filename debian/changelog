@@ -21,6 +21,8 @@ chntpw (140201-1) unstable; urgency=medium
   * Apply patch to enable sampasswd writing to the HIVE file (Closes: 803888)
   * Apply patch to make it possible to read files when the filesystem is
     read-only (Closes: 762508)
+  * Add samunlock tool developed by Adrian Gibanel Lopez and published in 
+    https://github.com/rescatux/chntpw
 
  -- Javier Fernández-Sanguino Peña <jfs@debian.org>  Thu, 20 Jan 2022 22:35:49 +0100
 
