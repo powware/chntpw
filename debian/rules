@@ -58,7 +58,7 @@ override_dh_installdocs:
 	[ ! -f faq.html ] || dh_installdocs faq.html bootdisk.html *.gif
 
 override_dh_installman:
-	dh_installman debian/chntpw.8 debian/samusrgrp.8 debian/reged.8 debian/sampasswd.8
+	dh_installman debian/chntpw.8 debian/samusrgrp.8 debian/reged.8 debian/sampasswd.8 debian/samunlock.8
 
 override_dh_installchangelogs:
 	dh_installchangelogs HISTORY.txt

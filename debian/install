@@ -2,3 +2,4 @@ chntpw usr/sbin/
 reged usr/sbin/
 sampasswd usr/sbin/
 samusrgrp usr/sbin/
+samunlock usr/sbin/
