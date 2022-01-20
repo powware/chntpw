@@ -19,5 +19,5 @@ Not forwarded, this patch is Debian-specific
  
  clean:
 -	rm -f *.o chntpw chntpw.static cpnt reged reged.static samusrgrp samusrgrp.static sampasswd sampasswd.static *~
-+	-rm -f *.o chntpw chntpw.static cpnt reged reged.static samusrgrp samusrgrp.static sampasswd sampasswd.static *~
++	rm -f *.o chntpw cpnt reged samusrgrp sampasswd *~
  

@@ -1,3 +1,10 @@
+chntpw (1.0-2) UNRELEASED; urgency=medium
+
+  * switch package to use dh and bump compat to 13
+  * add d/source/format quilt
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Sun, 16 Jan 2022 20:16:12 +0100
+
 chntpw (1.0-1.1) unstable; urgency=low
 
   * Non-maintainer upload.
