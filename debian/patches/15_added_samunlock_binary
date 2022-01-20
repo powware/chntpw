@@ -1,5 +1,13 @@
-Added samunlock binary that let's you unlock or list users.
- This command is suited for scripts and it is also interactive
+Description: Add samunlock binary 
+ The samunlock binary lets you unlock or list users.
+ This command is suited for scripts and can be run also interactively
+
+ Obtained from: https://github.com/rescatux/chntpw/
+
+Forwarded: no
+Origin: other
+Author: Adrian Gibanel Lopez <adrian15sgd@gmail.com>
+
 --- a/Makefile
 +++ b/Makefile
 @@ -12,7 +12,7 @@
@@ -27,8 +35,8 @@ Added samunlock binary that let's you unlock or list users.
  	$(CC) -c $(CFLAGS) $<
  
  clean:
--	-rm -f *.o chntpw chntpw.static cpnt reged reged.static samusrgrp samusrgrp.static sampasswd sampasswd.static *~
-+	-rm -f *.o chntpw chntpw.static cpnt reged reged.static samusrgrp samusrgrp.static sampasswd sampasswd.static samunlock samunlock.static *~
+-	rm -f *.o chntpw cpnt reged samusrgrp sampasswd *~
++	rm -f *.o chntpw cpnt reged samusrgrp sampasswd samunlock *~
  
 --- /dev/null
 +++ b/samunlock.c
