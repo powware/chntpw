@@ -6,6 +6,7 @@ Build-Depends: debhelper-compat (= 13), libgcrypt20-dev | libgcrypt-dev, sharuti
 Standards-Version: 3.9.5
 Homepage: http://pogostick.net/~pnh/ntpasswd/
 Vcs-git: https://salsa.debian.org/debian/chntpw.git
+Vcs-browser-field: https://salsa.debian.org/debian/chntpw
 
 Package: chntpw
 Architecture: any
