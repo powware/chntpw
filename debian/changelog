@@ -201,7 +201,7 @@ chntpw (0.99.2-3) unstable; urgency=low
 
 chntpw (0.99.2-2) unstable; urgency=low
 
-  * Actually add the build-depends on sharutils (Closes: #254706) 
+  * Actually add the build-depends on sharutils (Closes: #254706)
 
  -- Javier Fernandez-Sanguino Pen~a <jfs@computer.org>  Sun, 27 Jun 2004 12:51:34 +0200
 
@@ -229,7 +229,7 @@ chntpw (0.99.1-030126-1) unstable; urgency=low
   * New upstream release (Closes: #193898)
   * Mofided chntpw.c and Makefile (OPENSSL_DES_LIBDES_COMPATIBILITY)
     in order to be able to compile it with (sid provides 0.97b).
-    Note: This might not work for OpenSSL 1.0, refer to 
+    Note: This might not work for OpenSSL 1.0, refer to
      /usr/include/openssl/des_old.h
 
  -- Javier Fernandez-Sanguino Pen~a <jfs@computer.org>  Sun, 25 May 2003 21:13:52 +0200
