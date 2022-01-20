@@ -51,6 +51,9 @@ endif
 %:
 	dh $@
 
+override_dh_auto_build:
+	$(MAKE) CFLAGS="$(CFLAGS)"
+
 override_dh_installdocs:
 	dh_installdocs
 	# Do not install the documentation until available
