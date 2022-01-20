@@ -17,6 +17,10 @@ chntpw (140201-1) unstable; urgency=medium
   * debian/watch: updated to version 4
   * Use the original version numbering to avoid confusing uscan
   * Add description to all patches (lintian fix)
+  * Apply patch to fix descriptions in source code and typos (Closes: 803884, 803883)
+  * Apply patch to enable sampasswd writing to the HIVE file (Closes: 803888)
+  * Apply patch to make it possible to read files when the filesystem is
+    read-only (Closes: 762508)
 
  -- Javier Fernández-Sanguino Peña <jfs@debian.org>  Thu, 20 Jan 2022 22:35:49 +0100
 
