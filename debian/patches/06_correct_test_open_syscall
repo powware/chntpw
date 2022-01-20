@@ -2,7 +2,11 @@ Description: Fix code in source
   Fix code that probably is never run since the existing code is totally bogus.
   The condition, !open(...), will almost always be true.  (sole exception is
   when starting a program with stdin initially closed)
+
 Forwarded: no
+Author: Jim Meyering <meyering@redhat.com>
+Last-Update: Mon, 20 Jul 2009 21:05:44 +0200
+
 --- a/ntreg.c
 +++ b/ntreg.c
 @@ -4133,7 +4133,7 @@
