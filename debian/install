@@ -1,4 +1,4 @@
-usr/sbin/chntpw
-usr/sbin/reged
-usr/sbin/sampasswd
-usr/sbin/samusrgrp
+chntpw usr/sbin/
+reged usr/sbin/
+sampasswd usr/sbin/
+samusrgrp usr/sbin/
