@@ -1,4 +1,4 @@
-chntpw (1:140201-1) unstable; urgency=medium
+chntpw (140201-1) unstable; urgency=medium
 
   [ Fabio Fantoni ]
   * switch package to use dh and bump compat to 13 (Closes: #965458)
@@ -15,6 +15,7 @@ chntpw (1:140201-1) unstable; urgency=medium
   * Add VCS fields in debian/control
   * Updated Standards-Version
   * debian/watch: updated to version 4
+  * Use the original version numbering to avoid confusing uscan
   * Add description to all patches (lintian fix)
 
  -- Javier Fernández-Sanguino Peña <jfs@debian.org>  Thu, 20 Jan 2022 22:35:49 +0100
