@@ -1,5 +1,6 @@
-chntpw (1.0-2) unstable; urgency=medium
+chntpw (1:140201-1) unstable; urgency=medium
 
+  [ Fabio Fantoni ]
   * switch package to use dh and bump compat to 13 (Closes: #965458)
   * add d/source/format quilt
   * include the Makefile changes that was out of d/patches in
@@ -10,7 +11,11 @@ chntpw (1.0-2) unstable; urgency=medium
     (Closes: #902549)
   * Remove unused/wrong INSTALL_PROGRAM variable.
 
- -- Fabio Fantoni <fantonifabio@tiscali.it>  Sun, 16 Jan 2022 20:16:12 +0100
+  [ Javier Fernández-Sanguino ]
+  * Add VCS fields in debian/control
+  * Updated Standards-Version
+
+ -- Javier Fernández-Sanguino Peña <jfs@debian.org>  Thu, 20 Jan 2022 22:35:49 +0100
 
 chntpw (1.0-1.1) unstable; urgency=low
 
