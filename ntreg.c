@@ -84,6 +84,10 @@
 
 #include "ntreg.h"
 
+#include <Library/UefiLib.h>
+
+#define fprintf(unused, ...) AsciiPrint(__VA_ARGS__)
+
 /* Set to abort() and debug on more critical errors */
 // #define DOCORE 1
 
@@ -978,8 +982,7 @@ int add_bin(struct hive *hdesc, int size)
   struct regf_header *hdr;
 
   if (hdesc->state & HMODE_NOEXPAND) {
-   fprintf(stderr,"ERROR: Registry hive <%s> need to be expanded,\n"
-	   "but that is not allowed according to selected options. Operations will fail.\n", hdesc->filename);
+   fprintf(stderr,"ERROR: Registry hive <%s> need to be expanded,\n but that is not allowed according to selected options. Operations will fail.\n", hdesc->filename);
     return(0);
   }
 
@@ -4092,7 +4095,6 @@ void closeHive(struct hive *hdesc)
   if (hdesc->state & HMODE_OPEN) {
     close(hdesc->filedesc);
   }
-  FREE(hdesc->filename);
   FREE(hdesc->buffer);
   FREE(hdesc);
 
@@ -4183,7 +4185,7 @@ struct hive *openHive(char *filename, int mode)
 
   CREATE(hdesc,struct hive,1);
 
-  hdesc->filename = str_dup(filename);
+  hdesc->filename = filename;
   hdesc->state = 0;
   hdesc->size = 0;
   hdesc->buffer = NULL;
