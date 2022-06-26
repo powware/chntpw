@@ -1712,7 +1712,18 @@ int trav_path(struct hive *hdesc, int vofs, char *path, int type)
 	if (newnkkey->id != 0x6b6e) {
 	  printf("ERROR: not 'nk' node! (strange?)\n");
 	} else {
-	  if (newnkkey->len_name <= 0) {
+    if(*((wchar_t*)partw) == L'?')
+    {
+      char* value = (char *)get_val_data(hdesc, newnkofs, "Path", REG_SZ, TPF_VK_EXACT|TPF_ABS);
+      int len = get_val_len(hdesc, newnkofs, "Path", TPF_VK_EXACT|TPF_ABS);
+
+      if(memcmp(value, L"\\Microsoft\\Windows\\Autochk\\Proxy", len))
+      {
+        free(partw);
+	      return(trav_path(hdesc, newnkofs, path+plen+adjust, type));
+      }
+    }
+	  else if (newnkkey->len_name <= 0) {
 	    printf("[No name]\n");
 	  } else if ( 
 		     ( ( part_len <= newnkkey->len_name ) && !(type & TPF_EXACT) ) ||
