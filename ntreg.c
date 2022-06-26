@@ -72,7 +72,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -86,7 +85,7 @@
 
 #include <Library/UefiLib.h>
 
-#define fprintf(unused, ...) AsciiPrint(__VA_ARGS__)
+int isspace(int c);
 
 /* Set to abort() and debug on more critical errors */
 // #define DOCORE 1
@@ -330,51 +329,51 @@ void cheap_ascii2uni(char *src, char *dest, int l)
    }
 }
 
-void skipspace(char **c)
-{
-   while( **c == ' ' ) (*c)++;
-}
+// void skipspace(char **c)
+// {
+//    while( **c == ' ' ) (*c)++;
+// }
 
-int gethex(char **c)
-{
-   int value;
+// int gethex(char **c)
+// {
+//    int value;
    
-   skipspace(c);
+//    skipspace(c);
    
-   if (!(**c)) return(0);
+//    if (!(**c)) return(0);
 
-   sscanf(*c,"%x",&value);
+//    sscanf(*c,"%x",&value);
 
-   while( **c != ' ' && (**c)) (*c)++;
+//    while( **c != ' ' && (**c)) (*c)++;
 
-   return(value);
-}
+//    return(value);
+// }
    
-/* Get a string of HEX bytes (space separated),
- * or if first char is ' get an ASCII string instead.
- */
+// /* Get a string of HEX bytes (space separated),
+//  * or if first char is ' get an ASCII string instead.
+//  */
 
-int gethexorstr(char **c, char *wb)
-{
-   int l = 0;
+// int gethexorstr(char **c, char *wb)
+// {
+//    int l = 0;
    
-   skipspace(c);
+//    skipspace(c);
    
-   if ( **c == '\'') {
-      (*c)++;
-      while ( **c ) {
-	 *(wb++) = *((*c)++);
-	 l++;
-      }
-   } else {
-      do {
-	 *(wb++) = gethex(c);
-	 l++;
-	 skipspace(c);
-      } while ( **c );
-   }
-   return(l);
-}
+//    if ( **c == '\'') {
+//       (*c)++;
+//       while ( **c ) {
+// 	 *(wb++) = *((*c)++);
+// 	 l++;
+//       }
+//    } else {
+//       do {
+// 	 *(wb++) = gethex(c);
+// 	 l++;
+// 	 skipspace(c);
+//       } while ( **c );
+//    }
+//    return(l);
+// }
 
 /* Simple buffer debugger, returns 1 if buffer dirty/edited */
 
@@ -3718,8 +3717,11 @@ int de_escape(char *s, int wide)
   return(dst);
 }
 
-
-
+int get_byte(const char *s, uint8_t *byte)
+{
+  *byte = (unsigned char)((s[0] - '0') << 4 | (s[1] - '0'));
+  return 1;
+}
 
 /* Parse the value to be assigned
  * s = string to parse
@@ -3756,7 +3758,7 @@ int parse_valuestring(char *s, char *w, int len, int wide, struct keyval **kvptr
   //  printf("parse_val: input string: <%s>\n",s);
 
   if (!strncmp(s,"dword",4)) {  /* DWORD */
-    sscanf(s,"dword:%x",&dword);
+    dword = strtol(s + strlen("dword:"), NULL, 10);
     //    printf("parse_vals: dword is %x\n",dword);
     type = REG_DWORD;
     len = 4;
@@ -3764,7 +3766,7 @@ int parse_valuestring(char *s, char *w, int len, int wide, struct keyval **kvptr
     kv->data = dword;
 
   } else if (!strncmp(s,"hex",3)) { /* Hex string */
-    if (!sscanf(s,"hex(%x):",&type)) type = REG_BINARY;
+    type = REG_BINARY;
 
     //   printf("parse_vals: hex type is %d\n",type);
 
@@ -3779,8 +3781,8 @@ int parse_valuestring(char *s, char *w, int len, int wide, struct keyval **kvptr
     array = (uint8_t *)&kv->data;
 
     for (i = 0; i < len; i++) {
-      if (!sscanf(s,"%hhx",&byte)) {
-	fprintf(stderr,"parse_values: hex string parse error: %s\n",s);
+      if (!get_byte(s, &byte)) {
+	fprintf(stderr,"parse_values: hex string parse error: %a\n",s);
 	abort();
       }
       //      printf("parse_vals: adding byte: %02x\n",byte);
@@ -3907,7 +3909,8 @@ void import_reg(struct hive *hdesc, char *filename, char *prefix)
       c = fgetc(file); /* Get second wide indicator character */
       wide = 1;
     } else {
-      ungetc(c, file);
+      fprintf(stderr,"import_reg:ERROR: Non-Wide character (8 bit) file..\n");
+      return;
     }
 
     line[0] = 0;
@@ -4095,6 +4098,7 @@ void closeHive(struct hive *hdesc)
   if (hdesc->state & HMODE_OPEN) {
     close(hdesc->filedesc);
   }
+  FREE(hdesc->filename);
   FREE(hdesc->buffer);
   FREE(hdesc);
 
@@ -4185,7 +4189,7 @@ struct hive *openHive(char *filename, int mode)
 
   CREATE(hdesc,struct hive,1);
 
-  hdesc->filename = filename;
+  hdesc->filename = str_dup(filename);
   hdesc->state = 0;
   hdesc->size = 0;
   hdesc->buffer = NULL;
