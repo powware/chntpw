@@ -1712,16 +1712,32 @@ int trav_path(struct hive *hdesc, int vofs, char *path, int type)
 	if (newnkkey->id != 0x6b6e) {
 	  printf("ERROR: not 'nk' node! (strange?)\n");
 	} else {
-    if(*((wchar_t*)partw) == L'?')
+    if(*partw == '?')
     {
       char* value = (char *)get_val_data(hdesc, newnkofs, "Path", REG_SZ, TPF_VK_EXACT|TPF_ABS);
-      int len = get_val_len(hdesc, newnkofs, "Path", TPF_VK_EXACT|TPF_ABS);
-
-      if(memcmp(value, L"\\Microsoft\\Windows\\Autochk\\Proxy", len))
+      if(!value)
       {
-        free(partw);
-	      return(trav_path(hdesc, newnkofs, path+plen+adjust, type));
+        continue;
       }
+      
+      // mismatch
+      char* wanted = "\\Microsoft\\Windows\\Autochk\\Proxy";
+      int mismatch = 0;
+      for (char* temp = value; *wanted; wanted++, temp +=2)
+      {
+        if(*wanted != *temp)
+        {
+          mismatch = 1;
+        }
+      }
+
+      if(mismatch)
+      {
+        continue;
+      }
+
+      free(partw);
+	    return(trav_path(hdesc, newnkofs, path+plen+adjust, type));
     }
 	  else if (newnkkey->len_name <= 0) {
 	    printf("[No name]\n");
@@ -1899,7 +1915,6 @@ void *get_val_data(struct hive *hdesc, int vofs, char *path, int val_type, int e
   vkofs = trav_path(hdesc,vofs,path,exact | TPF_VK);
   if (!vkofs) {
     printf("get_val_data: %s not found\n",path);
-    abort();
     return NULL;
   }
   vkofs +=4;
