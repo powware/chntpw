@@ -3717,9 +3717,22 @@ int de_escape(char *s, int wide)
   return(dst);
 }
 
+uint8_t get_byte_half(uint8_t byte)
+{
+    if (byte >= '0' && byte <= '9')
+      byte = byte - '0';
+    else if (byte >= 'a' && byte <= 'f')
+      byte = byte - 'a' + 10;
+    else if (byte >= 'A' && byte <= 'F')
+      byte = byte - 'A' + 10;
+
+  return byte;
+}
+
 int get_byte(const char *s, uint8_t *byte)
 {
-  *byte = (unsigned char)((s[0] - '0') << 4 | (s[1] - '0'));
+  *byte = (get_byte_half(s[0]) << 4) | get_byte_half(s[1]);
+
   return 1;
 }
 
@@ -3758,7 +3771,7 @@ int parse_valuestring(char *s, char *w, int len, int wide, struct keyval **kvptr
   //  printf("parse_val: input string: <%s>\n",s);
 
   if (!strncmp(s,"dword",4)) {  /* DWORD */
-    dword = strtol(s + strlen("dword:"), NULL, 10);
+    dword = strtol(s + strlen("dword:"), NULL, 16);
     //    printf("parse_vals: dword is %x\n",dword);
     type = REG_DWORD;
     len = 4;
