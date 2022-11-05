@@ -753,7 +753,7 @@ struct keyval *reg_valcat(struct keyval *a, struct keyval *b)
 
 int parse_block(struct hive *hdesc, int vofs,int verbose)
 {
-  unsigned short id;
+  // unsigned short id;
   int seglen;
 
   seglen = get_int(hdesc->buffer+vofs);
@@ -796,7 +796,7 @@ int parse_block(struct hive *hdesc, int vofs,int verbose)
 
 
   vofs += 4;
-  id = (*(hdesc->buffer + vofs)<<8) + *(hdesc->buffer+vofs+1);
+  // id = (*(hdesc->buffer + vofs)<<8) + *(hdesc->buffer+vofs+1);
 
   // if (verbose > 1) {
   //   switch (id) {
